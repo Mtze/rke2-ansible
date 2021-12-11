@@ -1,2 +1,4 @@
 ---
 # tasks file for rke2-ansible
+#
+- include_tasks: install-rke2.yml

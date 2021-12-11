@@ -1,6 +1,6 @@
 # mtze.rke2
 
-Role to install a RKE2 Cluster. 
+Role to install a RKE2 Cluster.
 
 # Requirements
 
@@ -22,11 +22,11 @@ TBA
 
 MIT
 
-# Development Environment 
+# Development Environment
 
 ```
-virtualenv venv 
-. venv/bin/activate.fish # For fish shell users 
+virtualenv venv
+. venv/bin/activate.fish # For fish shell users
 pip3 install -r requirements.txt
 ```
 

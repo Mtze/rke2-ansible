@@ -1,6 +1,10 @@
 galaxy_info:
+  role_name: rke2
+  namespace: mtze
+
   author: Matthias Linhuber
   description: Install a RKE2 Kubernetes cluster
+
 
   issue_tracker_url: https://github.com/Mtze/rke2-ansible/issues
 
@@ -13,7 +17,7 @@ galaxy_info:
       versions:
       - 20.04
 
-  galaxy_tags: [RKE2, K8s, Kubernetes, Rancher]
+  galaxy_tags: [rke2, k8s, kubernetes, rancher, kube, vip]
 
 dependencies: []
   # List your role dependencies here, one per line. Be sure to remove the '[]' above,

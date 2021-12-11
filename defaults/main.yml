@@ -1,2 +1,20 @@
 ---
-# defaults file for rke2-ansible
+cluster_name: rke2
+
+# URL to the used RKE2 install script
+rke2_download_url: https://get.rke2.io
+
+# Path to download the RKE2 install script to
+rke2_download_path: /opt/
+
+# Cluster Token (Will be set automatically if not defined)
+cluster_token:
+
+# If kube-vip is used, define the cluster control plane virtual ip and associated DNS name here. These will be added as tls-san.
+control_plane_vip:
+control_plane_vip_hostname:
+
+
+# Download kubeconfig from cluster to local machine?
+fetch_kube_config: true
+local_kube_config_path: "~/.kube/config-{{ cluster_name }}"

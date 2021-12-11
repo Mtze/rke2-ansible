@@ -1,0 +1,11 @@
+{% if cluster_token is not none %}
+token: {{ cluster_token }}
+{% endif %}
+tls-san:
+  - {{ ansible_hostname }}
+{% if control_plane_vip is not none %}
+  - {{ control_plane_vip }}
+{% endif %}
+{% if control_plane_vip_hostname is not none %}
+  - {{ control_plane_vip_hostname }}
+{% endif %}
