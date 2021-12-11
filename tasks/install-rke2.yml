@@ -1,4 +1,10 @@
 ---
+- name: Ensure rancher directory exists
+  become: true
+  ansible.builtin.file: 
+    path: /etc/rancher/rke2
+    state: directory
+
 - name: Deploy rancher rke2 config
   become: true
   ansible.builtin.template:
@@ -7,30 +13,36 @@
     owner: root
     group: root
 
-- name: Check if install is necessary 
+- name: Check if install is necessary
   stat: 
     path: "{{ rke2_download_path }}/install.sh"
   register: install_script
+
+- name: Show File status for install script
+  debug: 
+    var: install_script
 
 - name: Get RKE2 Install script
   become: true
   ansible.builtin.get_url:
     url: "{{ rke2_download_url }}"
     dest: "{{ rke2_download_path }}/install.sh"
-  when: install_script.stat.exists
+  when: not install_script.stat.exists
 
 - name: Execute Install Script
   become: true
-  command: "{{ rke2_download_path }}/install.sh"
-  when: install_script.stat.exists
+  command: "sh {{ rke2_download_path }}/install.sh"
+  when: not install_script.stat.exists
 
 - name: Enable and start RKE2 service
+  become: true
   ansible.builtin.service:
-    name: rke2
+    name: rke2-server
     state: started
     enabled: true
 
 - name: Fetch kube config file
+  become: true
   ansible.builtin.fetch:
     src: /etc/rancher/rke2/rke2.yaml
     dest: "{{ local_kube_config_path }}"
