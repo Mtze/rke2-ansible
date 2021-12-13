@@ -26,3 +26,6 @@ kubectl_version: v1.23.0 # curl -L https://dl.k8s.io/release/stable.txt
 # Download kubeconfig from cluster to local machine?
 fetch_kube_config: true
 local_kube_config_path: "~/.kube/config-{{ cluster_name }}"
+
+
+debug_output: false

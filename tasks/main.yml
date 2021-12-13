@@ -3,6 +3,8 @@
 #TODO: 
 # - Disable SWAP
 
+- include_tasks: find-cluster-token.yml
+
 - include_tasks: install-kubectl.yml
   when: 
     - kubectl_install_on_nodes

@@ -5,22 +5,16 @@
     path: /etc/rancher/rke2
     state: directory
 
-- name: Deploy rancher rke2 config
-  become: true
-  ansible.builtin.template:
-    src: rke2_config.yml.j2
-    dest: /etc/rancher/rke2/config.yaml
-    owner: root
-    group: root
-
 - name: Check if install is necessary
-  stat: 
+  ansible.builtin.stat: 
     path: "{{ rke2_download_path }}/install.sh"
   register: install_script
 
 - name: Show File status for install script
-  debug: 
+  ansible.builtin.debug:
     var: install_script
+  when:
+    - debug_output
 
 - name: Get RKE2 Install script
   become: true
@@ -29,17 +23,27 @@
     dest: "{{ rke2_download_path }}/install.sh"
   when: not install_script.stat.exists
 
+- name: Deploy rancher rke2 config
+  become: true
+  ansible.builtin.template:
+    src: rke2_config.yml.j2
+    dest: /etc/rancher/rke2/config.yaml
+    owner: root
+    group: root
+
 - name: Execute Install Script
   become: true
   command: "sh {{ rke2_download_path }}/install.sh"
   when: not install_script.stat.exists
 
+# RKE2 only allows one node to be in learner state - Hence we need to start one node after the other!
 - name: Enable and start RKE2 service
   become: true
   ansible.builtin.service:
     name: rke2-server
     state: started
     enabled: true
+  throttle: 1
 
 - name: Fetch kube config file
   become: true
