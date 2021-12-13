@@ -10,6 +10,9 @@ rke2_download_path: /opt/
 # Cluster Token (Will be set automatically if not defined)
 cluster_token:
 
+# First node install (Set this to true to generate a Token. Must be executed on one host only!
+first_node_install: false
+
 # If kube-vip is used, define the cluster control plane virtual ip and associated DNS name here. These will be added as tls-san.
 control_plane_vip:
 control_plane_vip_hostname:
