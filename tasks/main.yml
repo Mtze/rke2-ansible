@@ -3,6 +3,8 @@
 #TODO: 
 # - Disable SWAP
 
+- include_tasks: check-variables.yml
+
 - include_tasks: find-cluster-token.yml
   when:
     - not first_node_install

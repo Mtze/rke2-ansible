@@ -7,6 +7,8 @@
       ansible.builtin.slurp:
         src: /var/lib/rancher/rke2/server/node-token
       register: remote_token
+      when: 
+      - rke2_node_type == "server"
 
     - name: Print returned information
       ansible.builtin.debug:
@@ -24,6 +26,8 @@
       delegate_to: "{{ item }}"
       with_items: "{{ play_hosts }}"
       run_once: yes
+      when: 
+      - rke2_node_type == "server"
 
     - name: Print returned information
       ansible.builtin.debug:

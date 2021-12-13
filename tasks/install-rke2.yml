@@ -31,16 +31,24 @@
     owner: root
     group: root
 
+- name: What will be installed to the node?
+  ansible.builtin.debug:
+    var: rke2_node_type
+  when:
+    - debug_output
+
 - name: Execute Install Script
   become: true
-  command: "sh {{ rke2_download_path }}/install.sh"
+  command: 'sh {{ rke2_download_path }}/install.sh'
+  environment: 
+    INSTALL_RKE2_TYPE: "{{ rke2_node_type }}"
   when: not install_script.stat.exists
 
 # RKE2 only allows one node to be in learner state - Hence we need to start one node after the other!
 - name: Enable and start RKE2 service
   become: true
   ansible.builtin.service:
-    name: rke2-server
+    name: "rke2-{{ rke2_node_type }}"
     state: started
     enabled: true
   throttle: 1
@@ -50,7 +58,9 @@
   ansible.builtin.fetch:
     src: /etc/rancher/rke2/rke2.yaml
     dest: "{{ local_kube_config_path }}"
+    run_once: yes
     when:
       - fetch_kube_config
       - local_kube_config_path is defined
       - local_kube_config_path is not none
+      - rke2_node_type == "server"

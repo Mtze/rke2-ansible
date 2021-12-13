@@ -5,7 +5,10 @@ cluster_name: rke2
 rke2_download_url: https://get.rke2.io
 
 # Path to download the RKE2 install script to
-rke2_download_path: /opt/
+rke2_download_path: /opt
+
+# RKE2 Cluster node type - Can be agent or server - Make sure to set the variable for agent nodes!
+rke2_node_type: server
 
 # Cluster Token (Will be set automatically if not defined)
 cluster_token:
