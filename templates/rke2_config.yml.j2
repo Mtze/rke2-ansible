@@ -1,6 +1,9 @@
 {% if cluster_token is not none %}
 token: {{ cluster_token }}
 {% endif %}
+
+server: {{ control_plane_server }}
+
 tls-san:
   - {{ ansible_hostname }}
 {% if control_plane_vip is not none %}
@@ -9,3 +12,6 @@ tls-san:
 {% if control_plane_vip_hostname is not none %}
   - {{ control_plane_vip_hostname }}
 {% endif %}
+{% for h in additional_hostnames %}
+  - {{ h }}
+{% endfor %}

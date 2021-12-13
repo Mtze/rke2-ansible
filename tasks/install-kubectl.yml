@@ -1,0 +1,15 @@
+---
+
+- name: Download and install kubectl
+  become: true
+  get_url:
+    url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/amd64/kubectl"
+    dest: /usr/local/bin/kubectl
+    force: yes
+    mode: "+rx"
+
+- name: Ensure .kube folder is present for root user
+  become: true
+  file:
+    path: /root/.kube
+    state: directory

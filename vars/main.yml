@@ -1,2 +1,6 @@
 ---
 # vars file for rke2-ansible
+
+
+additional_hostnames: 
+  - "{{ inventory_hostname }}"

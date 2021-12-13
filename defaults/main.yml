@@ -14,6 +14,14 @@ cluster_token:
 control_plane_vip:
 control_plane_vip_hostname:
 
+# Control Plane node wich is used to register all other nodes - Set this to `control_plane_vip_hostname` if you use kube-vip
+# Important! This entry has to have the form: 
+# https://<your-host>:<your-port>
+control_plane_server: "https://{{ control_plane_vip_hostname }}:9345"
+
+kubectl_install_on_nodes: true
+kubectl_version: v1.23.0 # curl -L https://dl.k8s.io/release/stable.txt
+
 
 # Download kubeconfig from cluster to local machine?
 fetch_kube_config: true
