@@ -2,7 +2,9 @@
 token: {{ cluster_token }}
 {% endif %}
 
+{% if not first_node_install %}
 server: {{ control_plane_server }}
+{% endif %}
 
 tls-san:
   - {{ ansible_hostname }}
