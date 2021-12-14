@@ -2,8 +2,16 @@
 token: {{ cluster_token }}
 {% endif %}
 
+
+{# Only add server configuration if it is not the first node - Configure VIP as server if kube-vip is used #}
 {% if not first_node_install %}
+{% if control_plane_vip is not none and control_plane_vip_hostname is not none %}
+server: https://{{ control_plane_vip_hostname }}:9345
+{% elif control_plane_vip is not none %}
+server: https://{{ control_plane_vip }}:9345
+{% else %}
 server: {{ control_plane_server }}
+{% endif %}
 {% endif %}
 
 tls-san:

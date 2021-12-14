@@ -1,0 +1,20 @@
+--- 
+- name: Ensure rke2 manifest auto install dir exists
+  become: true
+  ansible.builtin.file:
+    path: /var/lib/rancher/rke2/server/manifests/
+    state: directory
+
+- name: Deploy RBAC manifest (Necessary for kube-vip to be able to run as daemonset)
+  become: true
+  ansible.builtin.get_url:
+    url: https://kube-vip.io/manifests/rbac.yaml
+    dest: /var/lib/rancher/rke2/server/manifests/kube-vip-rbac.yaml
+
+- name: Deploy kube-vip manifest 
+  become: true
+  ansible.builtin.template:
+    src: kube-vip.yml.j2
+    dest: /var/lib/rancher/rke2/server/manifests/kube-vip-cp.yaml
+    owner: root
+    group: root

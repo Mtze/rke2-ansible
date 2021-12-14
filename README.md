@@ -24,7 +24,7 @@ If the cluster token should be created with this role, the role must be executed
 The `first_node_install` variable has to be set to true for the fist node. 
 Later the token will be automatically resolved from the first node and propagated to the other nodes.
 
-```
+```yaml
 host: server-node-1
 roles: 
   - role: mtze.rke2
@@ -39,6 +39,28 @@ roles:
 ```
 ## Example - Generate cluster token externally
 TBA
+
+## Example - Generat cluster token with role and use kube-vip to deploy a HA Control Plane 
+
+This role will automatically install and configure kube-vip to provide a floating IP for the Control Plane if you add the `control_plane_vip*` variables. 
+
+```yaml
+host: server-node-1
+roles: 
+  - role: mtze.rke2
+    vars: 
+      first_node_install: true
+      control_plane_vip: 10.20.30.1
+      control_plane_vip_hostname: control-plane.example.com
+      control_plane_vip_interface: eth8
+
+host: all_nodes
+roles: 
+  - role: mtze.rke2
+    vars: 
+      control_plane_server: server-node-1
+```
+
 
 # License
 

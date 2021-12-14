@@ -19,6 +19,7 @@ first_node_install: false
 # If kube-vip is used, define the cluster control plane virtual ip and associated DNS name here. These will be added as tls-san.
 control_plane_vip:
 control_plane_vip_hostname:
+control_plane_vip_interface: # Interface on which the control plane will ARP for the VIP
 
 # Control Plane node wich is used to register all other nodes - Set this to `control_plane_vip_hostname` if you use kube-vip
 # Important! This entry has to have the form: 
