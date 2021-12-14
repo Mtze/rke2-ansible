@@ -16,6 +16,7 @@
       ignore_errors: yes
       when: 
         - debug_output
+        - rke2_node_type == "server"
 
     # This is special. We need to propagate the Cluster token from the first node to all the other nodes.
     # This play uses the register `remote_token` to store the token into the `cluster_token` host variable. 
@@ -27,13 +28,13 @@
       with_items: "{{ play_hosts }}"
       run_once: yes
       when: 
-      - rke2_node_type == "server"
+        - rke2_node_type == "server"
 
     - name: Print returned information
       ansible.builtin.debug:
         msg: "{{ cluster_token }}"
       when: 
-      - debug_output
+        - debug_output
 
   ignore_errors: true
   when:
