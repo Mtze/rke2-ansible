@@ -12,6 +12,9 @@ jobs:
     # Important: This sets up your GITHUB_WORKSPACE environment variable
     - uses: actions/checkout@v2
 
+    - name: Get repo env variable
+      run: echo ${{ github.repository }}
+
     - name: Lint Ansible Playbook
       # -> https://github.com/ansible/ansible-lint-action/issues/45
       # replace "master" with any valid ref
