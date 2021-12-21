@@ -28,6 +28,15 @@ tls-san:
 
 cni: {{ cni_plugin }}
 
+
+{% if disabled_components is not none %}
+disabled:
+{% for disabled_component in disabled_components %}
+  - {{ disabled_component }}
+{% endfor %}
+{% endif %}
+
+
 {# Define the Cluster domain if it is configured as variable #}
 {% if cluster_domain is not none %}
 cluster-domain: {{ cluster_domain }}

@@ -16,6 +16,10 @@ cluster_token:
 # CNI Plugins to deploy, one of none, calico, canal, cilium
 cni_plugin: calico 
 
+# Disabled components  (valid items: rke2-coredns, rke2-ingress-nginx, rke2-kube-proxy, rke2-metrics-server)
+disabled_components: 
+  - rke2-ingress-nginx 
+
 # First node install (Set this to true to generate a Token. Must be executed on one host only!
 first_node_install: false
 

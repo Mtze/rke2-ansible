@@ -22,6 +22,8 @@ Make sure to set the `rke2_node_type` (can be `server` or `agent`) variable for 
 If you bootstrap a cluster with this role, you have to execute this role on one node only with the `first_node_install` variable set to `true`. 
 This will automatically instantiate the cluster on one node which then can be joined by additional nodes - An example can be seen below. 
 
+By default, this role will not install an ingress controler! The default CNI plugin is calico. Both can be configured with the corresponding variables. 
+
 ## Kubeconfig
 This role can fetch the kubeconfig file from the cluster to your local machine. This is enabled by default. Configure the following variables to adjust the behavior.
 ```
