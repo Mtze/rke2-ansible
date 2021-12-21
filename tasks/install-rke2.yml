@@ -59,8 +59,8 @@
   ansible.builtin.fetch:
     src: /etc/rancher/rke2/rke2.yaml
     dest: "{{ local_kube_config_path }}"
-    run_once: yes
-    delegate_facts: true
+  run_once: yes
+  delegate_facts: true
   when:
     - rke2_node_type == "server"
     - fetch_kube_config

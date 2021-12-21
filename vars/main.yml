@@ -4,3 +4,14 @@
 
 additional_hostnames: 
   - "{{ inventory_hostname }}"
+
+
+# Cluster domain name (https://docs.rke2.io/install/install_options/server_config/)
+cluster_domain: 
+
+# Cluster cidr (Define IP address space used for pods)
+cluster_cidr: 
+
+# Service cidr (Define IP address space used for services)
+service_cidr: 
+
