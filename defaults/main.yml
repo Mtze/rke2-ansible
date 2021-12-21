@@ -13,6 +13,9 @@ rke2_node_type: server
 # Cluster Token (Will be set automatically if not defined)
 cluster_token:
 
+# CNI Plugins to deploy, one of none, calico, canal, cilium
+cni_plugin: calico 
+
 # First node install (Set this to true to generate a Token. Must be executed on one host only!
 first_node_install: false
 

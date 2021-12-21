@@ -26,6 +26,7 @@ tls-san:
   - {{ h }}
 {% endfor %}
 
+cni: {{ cni_plugin }}
 
 {# Define the Cluster domain if it is configured as variable #}
 {% if cluster_domain is not none %}
