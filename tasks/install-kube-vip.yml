@@ -1,4 +1,4 @@
---- 
+---
 - name: Ensure rke2 manifest auto install dir exists
   become: true
   ansible.builtin.file:
@@ -11,7 +11,7 @@
     url: https://kube-vip.io/manifests/rbac.yaml
     dest: /var/lib/rancher/rke2/server/manifests/kube-vip-rbac.yaml
 
-- name: Deploy kube-vip manifest 
+- name: Deploy kube-vip manifest
   become: true
   ansible.builtin.template:
     src: kube-vip.yml.j2

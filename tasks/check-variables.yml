@@ -1,7 +1,7 @@
 ---
 - name: Check if rke2_node_type is valid
-  fail: 
+  fail:
     msg: "Only 'agent' and 'server' are valid for rke2_node_type"
-  when: 
+  when:
     - rke2_node_type != "server"
     - rke2_node_type != "agent"

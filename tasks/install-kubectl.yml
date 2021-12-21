@@ -5,7 +5,7 @@
   get_url:
     url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/amd64/kubectl"
     dest: /usr/local/bin/kubectl
-    force: yes
+    force: true
     mode: "+rx"
 
 - name: Ensure .kube folder is present for root user

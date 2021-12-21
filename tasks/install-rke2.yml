@@ -1,12 +1,12 @@
 ---
 - name: Ensure rancher directory exists
   become: true
-  ansible.builtin.file: 
+  ansible.builtin.file:
     path: /etc/rancher/rke2
     state: directory
 
 - name: Check if install is necessary
-  ansible.builtin.stat: 
+  ansible.builtin.stat:
     path: "{{ rke2_download_path }}/install.sh"
   register: install_script
 
@@ -41,7 +41,7 @@
 - name: Execute Install Script
   become: true
   command: 'sh {{ rke2_download_path }}/install.sh'
-  environment: 
+  environment:
     INSTALL_RKE2_TYPE: "{{ rke2_node_type }}"
   when: not install_script.stat.exists
 
@@ -59,11 +59,10 @@
   ansible.builtin.fetch:
     src: /etc/rancher/rke2/rke2.yaml
     dest: "{{ local_kube_config_path }}"
-  run_once: yes
+  run_once: true
   delegate_facts: true
   when:
     - rke2_node_type == "server"
     - fetch_kube_config
     - local_kube_config_path is defined
     - local_kube_config_path is not none
-

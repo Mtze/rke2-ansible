@@ -14,11 +14,11 @@ rke2_node_type: server
 cluster_token:
 
 # CNI Plugins to deploy, one of none, calico, canal, cilium
-cni_plugin: calico 
+cni_plugin: calico
 
 # Disabled components  (valid items: rke2-coredns, rke2-ingress-nginx, rke2-kube-proxy, rke2-metrics-server)
-disabled_components: 
-  - rke2-ingress-nginx 
+disabled_components:
+  - rke2-ingress-nginx
 
 # First node install (Set this to true to generate a Token. Must be executed on one host only!
 first_node_install: false
@@ -26,15 +26,17 @@ first_node_install: false
 # If kube-vip is used, define the cluster control plane virtual ip and associated DNS name here. These will be added as tls-san.
 control_plane_vip:
 control_plane_vip_hostname:
-control_plane_vip_interface: # Interface on which the control plane will ARP for the VIP
+# Interface on which the control plane will ARP for the VIP
+control_plane_vip_interface:
 
 # Control Plane node wich is used to register all other nodes - Set this to `control_plane_vip_hostname` if you use kube-vip
-# Important! This entry has to have the form: 
+# Important! This entry has to have the form:
 # https://<your-host>:<your-port>
 control_plane_server: "https://{{ control_plane_vip_hostname }}:9345"
 
 kubectl_install_on_nodes: true
-kubectl_version: v1.23.0 # curl -L https://dl.k8s.io/release/stable.txt
+# Find out version: curl -L https://dl.k8s.io/release/stable.txt
+kubectl_version: v1.23.0
 
 
 # Download kubeconfig from cluster to local machine?

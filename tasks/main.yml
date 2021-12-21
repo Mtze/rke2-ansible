@@ -1,6 +1,6 @@
 ---
 # tasks file for rke2-ansible
-#TODO: 
+# TODO:
 # - Disable SWAP
 # - Link Kubectl config on nodes
 # - Fix downloaded kubeconfig file to point to correct server
@@ -12,12 +12,12 @@
     - not first_node_install
 
 - include_tasks: install-kube-vip.yml
-  when: 
+  when:
     - first_node_install
     - control_plane_vip is not none
 
 - include_tasks: install-kubectl.yml
-  when: 
+  when:
     - kubectl_install_on_nodes
 
 - include_tasks: install-rke2.yml

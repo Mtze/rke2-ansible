@@ -1,39 +1,40 @@
 ---
-#This block tries to find the token on one of the nodes if it is not defined by hand
-- name: 
-  block: 
+# This block tries to find the token on one of the nodes if it is not defined by hand
+- name:
+  block:
     - name: Fetch Cluster token from node
       become: true
       ansible.builtin.slurp:
         src: /var/lib/rancher/rke2/server/node-token
       register: remote_token
-      when: 
-      - rke2_node_type == "server"
+      when:
+        - rke2_node_type == "server"
 
     - name: Print returned information
       ansible.builtin.debug:
         msg: "{{ remote_token['content'] | b64decode | trim }}"
-      ignore_errors: yes
-      when: 
+      ignore_errors: true # noqa ignore-errors comments
+      when:
         - debug_output
         - rke2_node_type == "server"
 
     # This is special. We need to propagate the Cluster token from the first node to all the other nodes.
-    # This play uses the register `remote_token` to store the token into the `cluster_token` host variable. 
-    # It propagates the token with "delegate" to all the nodes in the current playbook. This must be executed only once and only if the cluster token is not set by hand!
-    - name: Store Token in variable to access it on other nodes 
+    # This play uses the register `remote_token` to store the token into the `cluster_token` host variable.
+    # It propagates the token with "delegate" to all the nodes in the current playbook.
+    # This must be executed only once and only if the cluster token is not set by hand!
+    - name: Store Token in variable to access it on other nodes
       ansible.builtin.set_fact:
-        cluster_token:  "{{ remote_token['content'] | b64decode | trim }}"
+        cluster_token: "{{ remote_token['content'] | b64decode | trim }}"
       delegate_to: "{{ item }}"
       with_items: "{{ play_hosts }}"
-      run_once: yes
-      when: 
+      run_once: true
+      when:
         - rke2_node_type == "server"
 
     - name: Print returned information
       ansible.builtin.debug:
         msg: "{{ cluster_token }}"
-      when: 
+      when:
         - debug_output
 
   ignore_errors: true
