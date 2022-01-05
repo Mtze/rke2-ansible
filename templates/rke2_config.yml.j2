@@ -30,7 +30,7 @@ cni: {{ cni_plugin }}
 
 
 {% if disabled_components is not none %}
-disabled:
+disable:
 {% for disabled_component in disabled_components %}
   - {{ disabled_component }}
 {% endfor %}
