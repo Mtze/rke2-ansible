@@ -23,6 +23,16 @@
     dest: "{{ rke2_download_path }}/install.sh"
   when: not install_script.stat.exists
 
+- name: Show variable contents for rke2 config
+  ansible.builtin.debug:
+    msg: |
+      Variable - control_plane_server       {{ control_plane_server       }}
+      Variable - control_plane_vip          {{ control_plane_vip          }}
+      Variable - control_plane_vip_hostname {{ control_plane_vip_hostname }}
+      
+  when:
+    - debug_output
+
 - name: Deploy rancher rke2 config
   become: true
   ansible.builtin.template:

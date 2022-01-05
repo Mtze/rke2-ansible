@@ -92,7 +92,9 @@ host: all_nodes
 roles: 
   - role: mtze.rke2
     vars: 
-      control_plane_server: server-node-1
+      control_plane_vip: 10.20.30.1
+      control_plane_vip_hostname: control-plane.example.com
+      control_plane_vip_interface: eth8
 ```
 
 
