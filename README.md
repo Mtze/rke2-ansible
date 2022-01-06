@@ -109,6 +109,8 @@ virtualenv venv
 . venv/bin/activate.fish # For fish shell users
 pip3 install -r requirements.txt
 ```
+# Acknolegements
+This role is based on the [work](https://www.youtube.com/watch?v=QqSgiezqMAA&t=472s) of Adrian Goins ([Twitter](https://twitter.com/adriandotgoins), [Youtube](https://www.youtube.com/adriandotgoins)). 
 
 # Author Information
 
