@@ -29,7 +29,6 @@
       Variable - control_plane_server       {{ control_plane_server       }}
       Variable - control_plane_vip          {{ control_plane_vip          }}
       Variable - control_plane_vip_hostname {{ control_plane_vip_hostname }}
-      
   when:
     - debug_output
 
