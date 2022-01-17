@@ -44,4 +44,26 @@ fetch_kube_config: true
 local_kube_config_path: "~/.kube/config-{{ cluster_name }}"
 
 
+# Cluster domain name (https://docs.rke2.io/install/install_options/server_config/)
+cluster_domain:
+
+dualstack: true
+
+# Cluster cidr (Define IP address space used for pods) 
+# Make sure to configure both IPv4 and IPv6 if you deploy a dualstack cluster)
+# example: "198.18.0.0/16,fcfe::43:0/112"
+cluster_cidr:
+
+# Service cidr (Define IP address space used for services) 
+# Make sure to configure both IPv4 and IPv6 if you deploy a dualstack cluster
+service_cidr:
+
+# Define <IPv4>,<IPv6> address of each k8s node explicitly. 
+node_ips: #FIXME Use Ansible information to fill this automatically 
+
+
+node_cidr_mask_ipv4: 16
+node_cidr_mask_ipv6: 64
+
+
 debug_output: false
