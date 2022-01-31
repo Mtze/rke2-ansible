@@ -57,21 +57,8 @@ service-cidr: "{{ service_cidr }}"
 node-ip: "{{ node_ips }}"
 {% endif %}
 
-{% if dualstack is not none and dualstack %}
-{# RKE2 configuration referece: https://github.com/rancher/rke2/issues/870 #}
-{# Additional calico configurations: https://www.tigera.io/blog/dual-stack-operation-with-calico-on-kubernetes/ #}
-kube-apiserver-arg:
-  - "feature-gates=IPv6DualStack=true"
+{% if node_cidr_mask_ipv4 is not none and node_cidr_mask_ipv6 is not none  %}
 kube-controller-manager-arg:
-  - "feature-gates=IPv6DualStack=true"
-  - "cluster-cidr={{ cluster_cidr }}"
-  - "service-cluster-ip-range={{ service_cidr }}"
   - "node-cidr-mask-size-ipv4={{ node_cidr_mask_ipv4 }}"
   - "node-cidr-mask-size-ipv6={{ node_cidr_mask_ipv6 }}"
-kubelet-arg:
-  - "feature-gates=IPv6DualStack=true"
-kube-proxy-arg:
-  - "feature-gates=IPv6DualStack=true"
-  - "proxy-mode=ipvs"
-  - "cluster-cidr={{ cluster_cidr }}"
 {% endif %}
