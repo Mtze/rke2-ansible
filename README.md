@@ -97,6 +97,44 @@ roles:
       control_plane_vip_interface: eth0
 ```
 
+## Example - Deoloy Dualstack Cluster 
+You can deploy a dual stack cluster with this role. There are some important considerations to make: 
+- You have to define both, `cluster_cidr` and `service_cidr` with IPv4 and IPv6 address spaces. 
+- Make sure both address spaces are big enough so that each node can get a `/node_cidr_mask_ipv4` and a `/node_cidr_mask_ipv6` from the `cluster_cidr` address space. (Hence the more complex IPv6 example here)
+- A dual stack VIP is currently not supported by the role. 
+
+```
+- name: Setup frist host
+  host: server-node-1.example.com
+
+  roles:
+    - role: mtze.rke2
+      vars: 
+        first_node_install: true
+        cluster_cidr: "198.18.0.0/16,fcfe::1:0:0/96"
+        service_cidr: "198.19.0.0/16,fcfe::1:ffff:0/112"
+        node_cidr_mask_ipv4: 24
+        node_cidr_mask_ipv6: 112
+        cni_plugin: calico
+        control_plane_vip: 10.20.30.1
+        control_plane_vip_hostname: control-plane.example.com
+        control_plane_vip_interface: eth0
+
+- name: Setup frist host
+  host: all_nodes
+
+  roles:
+    - role: mtze.rke2
+      vars: 
+        cluster_cidr: "198.18.0.0/16,fcfe::1:0:0/96"
+        service_cidr: "198.19.0.0/16,fcfe::1:ffff:0/112"
+        node_cidr_mask_ipv4: 24
+        node_cidr_mask_ipv6: 112
+        cni_plugin: calico
+        control_plane_vip: 10.20.30.1
+        control_plane_vip_hostname: control-plane.example.com
+        control_plane_vip_interface: eth0
+```
 
 # License
 
