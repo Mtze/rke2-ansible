@@ -39,15 +39,26 @@ disable:
 
 {# Define the Cluster domain if it is configured as variable #}
 {% if cluster_domain is not none %}
-cluster-domain: {{ cluster_domain }}
+cluster-domain: "{{ cluster_domain }}"
 {% endif %}
 
 {# Define the Cluster cidr if it is configured as variable #}
 {% if cluster_cidr is not none %}
-cluster-cidr: {{ cluster_cidr }}
+cluster-cidr: "{{ cluster_cidr }}"
 {% endif %}
 
 {# Define the service cidr if it is configured as variable #}
 {% if service_cidr is not none %}
-service-cidr: {{ service_cidr }}
+service-cidr: "{{ service_cidr }}"
+{% endif %}
+
+{# Define Node IP adresses explicitly #}
+{% if node_ips is not none %}
+node-ip: "{{ node_ips }}"
+{% endif %}
+
+{% if node_cidr_mask_ipv4 is not none and node_cidr_mask_ipv6 is not none  %}
+kube-controller-manager-arg:
+  - "node-cidr-mask-size-ipv4={{ node_cidr_mask_ipv4 }}"
+  - "node-cidr-mask-size-ipv6={{ node_cidr_mask_ipv6 }}"
 {% endif %}
