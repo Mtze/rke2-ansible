@@ -10,6 +10,9 @@ rke2_download_path: /opt
 # RKE2 Cluster node type - Can be agent or server - Make sure to set the variable for agent nodes!
 rke2_node_type: server
 
+# RKE2 Version to be installed - see https://github.com/rancher/rke2/releases
+rke2_version: "v1.22.6+rke2r1"
+
 # Cluster Token (Will be set automatically if not defined)
 cluster_token:
 
