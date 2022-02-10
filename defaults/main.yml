@@ -29,6 +29,10 @@ control_plane_vip_hostname:
 # Interface on which the control plane will ARP for the VIP
 control_plane_vip_interface:
 
+# Kube VIP Version - See https://github.com/kube-vip/kube-vip/releases 
+kube_vip_version: v0.4.2
+kube_vip_image: "ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }}"
+
 # Control Plane node wich is used to register all other nodes - Set this to `control_plane_vip_hostname` if you use kube-vip
 # Important! This entry has to have the form:
 # https://<your-host>:<your-port>

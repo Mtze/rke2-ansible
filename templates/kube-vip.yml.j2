@@ -42,7 +42,7 @@ spec:
           value: "1"
         - name: address
           value: {{ control_plane_vip }}
-        image: ghcr.io/kube-vip/kube-vip:v0.4.0
+        image: {{ kube_vip_image }}
         imagePullPolicy: Always
         name: kube-vip
         resources: {}
