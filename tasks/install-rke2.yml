@@ -52,6 +52,7 @@
   command: 'sh {{ rke2_download_path }}/install.sh'
   environment:
     INSTALL_RKE2_TYPE: "{{ rke2_node_type }}"
+    INSTALL_RKE2_VERSION: "{{ rke2_version }}"
   when: not install_script.stat.exists
 
 # RKE2 only allows one node to be in learner state - Hence we need to start one node after the other!
