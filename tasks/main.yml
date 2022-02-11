@@ -21,3 +21,8 @@
     - kubectl_install_on_nodes
 
 - include_tasks: install-rke2.yml
+
+- include_tasks: install-calicoctl.yml
+  when: 
+    - cni_plugin == "calico"
+    - install_calicoctl

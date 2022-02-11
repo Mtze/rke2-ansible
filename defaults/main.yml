@@ -1,4 +1,8 @@
 ---
+
+#####################################################################
+# RKE2 Configuration
+#####################################################################
 cluster_name: rke2
 
 # URL to the used RKE2 install script
@@ -16,15 +20,56 @@ rke2_version: "v1.22.6+rke2r1"
 # Cluster Token (Will be set automatically if not defined)
 cluster_token:
 
-# CNI Plugins to deploy, one of none, calico, canal, cilium
-cni_plugin: calico
-
 # Disabled components  (valid items: rke2-coredns, rke2-ingress-nginx, rke2-kube-proxy, rke2-metrics-server)
 disabled_components:
   - rke2-ingress-nginx
 
 # First node install (Set this to true to generate a Token. Must be executed on one host only!
 first_node_install: false
+
+# Cluster domain name (https://docs.rke2.io/install/install_options/server_config/)
+cluster_domain:
+
+
+#####################################################################
+# CNI Configuration
+#####################################################################
+
+# CNI Plugins to deploy, one of none, calico, canal, cilium
+cni_plugin: calico
+
+# If Calico is defined as CNI - install calicoctl on nodes
+install_calicoctl: true
+calicoctl_version: "v3.22.0"
+
+
+#####################################################################
+# Cluster Network Configuration
+#####################################################################
+
+# Cluster cidr (Define IP address space used for pods) 
+# Make sure to configure both IPv4 and IPv6 if you deploy a dualstack cluster)
+# example: "198.18.0.0/16,fcfe::43:0:0/96"
+cluster_cidr:
+
+# Service cidr (Define IP address space used for services) 
+# Make sure to configure both IPv4 and IPv6 if you deploy a dualstack cluster
+# example: "198.18.254.0/24,fcfe::43:ffff:0/112"
+service_cidr:
+
+# Define <IPv4>,<IPv6> address of each k8s node explicitly. 
+# FIXME Use Ansible information to fill this automatically 
+node_ips: 
+
+# Configure the ip range size each cluster node will receive. Make sure that both cidrs are 
+# smaller then the cluster_cidr! Each node will receive a /{node_cidr_mask_ipv4} and /{node_cidr_mask_ipv4}
+# which the node uses to hand out ips to its pods. 
+node_cidr_mask_ipv4: 24
+node_cidr_mask_ipv6: 112
+
+#####################################################################
+# Kube-VIP Control Plane Configuration
+#####################################################################
 
 # If kube-vip is used, define the cluster control plane virtual ip and associated DNS name here. These will be added as tls-san.
 control_plane_vip:
@@ -46,32 +91,18 @@ kubectl_install_on_nodes: true
 kubectl_version: v1.23.0
 
 
+#####################################################################
+# kubectl Configuration
+#####################################################################
+
 # Download kubeconfig from cluster to local machine?
 fetch_kube_config: true
 local_kube_config_path: "~/.kube/config-{{ cluster_name }}"
 
 
-# Cluster domain name (https://docs.rke2.io/install/install_options/server_config/)
-cluster_domain:
+#####################################################################
+# misc Configuration
+#####################################################################
 
-# Cluster cidr (Define IP address space used for pods) 
-# Make sure to configure both IPv4 and IPv6 if you deploy a dualstack cluster)
-# example: "198.18.0.0/16,fcfe::43:0:0/96"
-cluster_cidr:
-
-# Service cidr (Define IP address space used for services) 
-# Make sure to configure both IPv4 and IPv6 if you deploy a dualstack cluster
-# example: "198.18.254.0/24,fcfe::43:ffff:0/112"
-service_cidr:
-
-# Define <IPv4>,<IPv6> address of each k8s node explicitly. 
-node_ips: #FIXME Use Ansible information to fill this automatically 
-
-# Configure the ip range size each cluster node will receive. Make sure that both cidrs are 
-# smaller then the cluster_cidr! Each node will receive a /{node_cidr_mask_ipv4} and /{node_cidr_mask_ipv4}
-# which the node uses to hand out ips to its pods. 
-node_cidr_mask_ipv4: 24
-node_cidr_mask_ipv6: 112
-
-
+# Print valuable role debug output 
 debug_output: false
