@@ -2,6 +2,7 @@ skip_list:
   - '403'  # Package installs should not use latest
   - '208'  # File permissions unset or incorrect
   - '201'  # Trailing Whitespace
+  - 'trailing-spaces'
 
 warn_list:
   - yaml
