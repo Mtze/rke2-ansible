@@ -12,6 +12,19 @@ This role offers the following features:
 
 This role is still in development - If you encounter problems or have feature requests, please open an [issue](https://github.com/Mtze/rke2-ansible/issues).
 
+# Installation 
+You can install the role using [Ansible Galaxy](https://galaxy.ansible.com/mtze/rke2)
+
+```
+ansible-galaxy install mtze.rke2
+```
+
+Manual install of latest version: 
+
+```
+ansible-galaxy install git+https://github.com/Mtze/rke2-ansible.git,main
+```
+
 # Role Variables
 
 See `defaults` and `vars` folders for all possible variables. 
