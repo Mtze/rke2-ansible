@@ -1,0 +1,9 @@
+---
+
+- name: Download and install calicoctl 
+  become: true
+  get_url:
+    url: "https://github.com/projectcalico/calico/releases/download/{{ calicoctl_version }}/calicoctl-linux-arm64"
+    dest: /usr/local/bin/calicoctl
+    force: true
+    mode: "+rx"

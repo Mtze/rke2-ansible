@@ -7,6 +7,8 @@ This role offers the following features:
 - Install additional control plane nodes 
 - Install worker nodes
 - Configure [kube-vip](https://kube-vip.io) to provide a high available control plane (in ARP mode)
+- Install `kubectl` on all nodes for local debugging (configurable)
+- Install `calicoctl` on all nodes if calico is used as CNI (configurable)
 
 This role is still in development - If you encounter problems or have feature requests, please open an [issue](https://github.com/Mtze/rke2-ansible/issues).
 
