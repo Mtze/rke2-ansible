@@ -15,6 +15,7 @@ docker run ghcr.io/kube-vip/kube-vip manifest daemonset \
         --interface <NIC on Host - e.g. ens18> 
         --address <VIP IP - e.g. 10.3.2.1>
         --controlplane 
+        --taint
         --leaderElection 
         --inCluster
 ```
