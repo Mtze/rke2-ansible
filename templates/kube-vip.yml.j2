@@ -7,13 +7,23 @@ metadata:
 spec:
   selector:
     matchLabels:
-      name: kube-vip-ds
+      app.kubernetes.io/name: kube-vip-ds
   template:
     metadata:
       creationTimestamp: null
       labels:
-        name: kube-vip-ds
+        app.kubernetes.io/name: kube-vip-ds
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+            - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
       containers:
       - args:
         - manager
@@ -54,6 +64,11 @@ spec:
             - SYS_TIME
       hostNetwork: true
       serviceAccountName: kube-vip
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
   updateStrategy: {}
 status:
   currentNumberScheduled: 0
