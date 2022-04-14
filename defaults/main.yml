@@ -106,3 +106,6 @@ local_kube_config_path: "~/.kube/config-{{ cluster_name }}"
 
 # Print valuable role debug output 
 debug_output: false
+
+# Install the necessary linux dependencies for a longhorn cluster within the rke2 cluster
+install_longhorn_dependencies: true

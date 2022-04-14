@@ -1,0 +1,9 @@
+---
+
+- name: Install Longhorn dependencies
+  become: true
+  ansible.builtin.apt:
+    name: 
+      - nfs-common
+      - open-iscsi 
+    update_cache: true 
