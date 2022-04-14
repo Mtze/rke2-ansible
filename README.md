@@ -31,13 +31,13 @@ See `defaults` and `vars` folders for all possible variables.
 
 __Important__:
 
-Make sure to set the `rke2_node_type` (can be `server` or `agent`) variable for your nodes. The easiest way is to create a group_var file for agent and for server (Control Plane) nodes and put the corresponding `rke2_node_type` in there. 
+Make sure to set the `rke2_node_type` (can be `server` or `agent`) variable for your nodes. The easiest way is to create a `group_var` file for agent and for server (Control Plane) nodes and put the corresponding `rke2_node_type` in there. 
 
 ## Cluster Bootstrap 
 If you bootstrap a cluster with this role, you have to execute this role on one node only with the `first_node_install` variable set to `true`. 
 This will automatically instantiate the cluster on one node which then can be joined by additional nodes - An example can be seen below. 
 
-By default, this role will not install an ingress controler! The default CNI plugin is calico. Both can be configured with the corresponding variables. 
+By default, this role will not install an ingress controller! The default CNI plugin is calico. Both can be configured with the corresponding variables. 
 
 ## Kubeconfig
 This role can fetch the kubeconfig file from the cluster to your local machine. This is enabled by default. Configure the following variables to adjust the behavior.
@@ -112,7 +112,7 @@ roles:
       control_plane_vip_interface: eth0
 ```
 
-## Example - Deoloy Dualstack Cluster 
+## Example - Deploy a dual-stack Cluster 
 You can deploy a dual stack cluster with this role. There are some important considerations to make: 
 - You have to define both, `cluster_cidr` and `service_cidr` with IPv4 and IPv6 address spaces. 
 - Make sure both address spaces are big enough so that each node can get a `/node_cidr_mask_ipv4` and a `/node_cidr_mask_ipv6` from the `cluster_cidr` address space. (Hence the more complex IPv6 example here)
@@ -155,14 +155,21 @@ You can deploy a dual stack cluster with this role. There are some important con
 
 MIT
 
-# Development Environment
+# Development Information
+
+## Setup Development Environment
 
 ```
 virtualenv venv
 . venv/bin/activate.fish # For fish shell users
 pip3 install -r requirements.txt
 ```
-# Acknolegements
+
+## Release Ansible Role 
+- Create a github release: A github action will automatically build the role and push it to ansible-galaxy (No manual version bump necessary)
+
+
+# Acknowledgements
 This role is based on the [work](https://www.youtube.com/watch?v=QqSgiezqMAA&t=472s) of Adrian Goins ([Twitter](https://twitter.com/adriandotgoins), [Youtube](https://www.youtube.com/adriandotgoins)). 
 
 # Author Information
