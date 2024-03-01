@@ -15,7 +15,7 @@ rke2_download_path: /opt
 rke2_node_type: server
 
 # RKE2 Version to be installed - see https://github.com/rancher/rke2/releases
-rke2_version: "v1.22.6+rke2r1"
+rke2_version: "v1.27.9+rke2r1"
 
 # Cluster Token (Will be set automatically if not defined)
 cluster_token:
@@ -40,7 +40,7 @@ cni_plugin: calico
 
 # If Calico is defined as CNI - install calicoctl on nodes
 install_calicoctl: true
-calicoctl_version: "v3.22.0"
+calicoctl_version: "v3.27.0"
 
 
 #####################################################################
@@ -78,7 +78,7 @@ control_plane_vip_hostname:
 control_plane_vip_interface:
 
 # Kube VIP Version - See https://github.com/kube-vip/kube-vip/releases 
-kube_vip_version: v0.4.2
+kube_vip_version: v0.6.4
 kube_vip_image: "ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }}"
 
 # Control Plane node wich is used to register all other nodes - Set this to `control_plane_vip_hostname` if you use kube-vip
