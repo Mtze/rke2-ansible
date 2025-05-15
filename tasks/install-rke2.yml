@@ -47,9 +47,15 @@
   when:
     - debug_output
 
+- name: Confirm installation
+  ansible.builtin.pause:
+    prompt: Is the agent type mapping from the last step correct? If yes press ENTER to continue or Ctrl+C to abort"
+  run_once: true
+  when: not install_script.stat.exists
+
 - name: Execute Install Script
   become: true
-  command: 'sh {{ rke2_download_path }}/install.sh'
+  command: "sh {{ rke2_download_path }}/install.sh"
   environment:
     INSTALL_RKE2_TYPE: "{{ rke2_node_type }}"
     INSTALL_RKE2_VERSION: "{{ rke2_version }}"

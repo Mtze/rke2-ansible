@@ -1,5 +1,4 @@
 ---
-
 #####################################################################
 # RKE2 Configuration
 #####################################################################
@@ -12,7 +11,7 @@ rke2_download_url: https://get.rke2.io
 rke2_download_path: /opt
 
 # RKE2 Cluster node type - Can be agent or server - Make sure to set the variable for agent nodes!
-rke2_node_type: server
+rke2_node_type:
 
 # RKE2 Version to be installed - see https://github.com/rancher/rke2/releases
 rke2_version: "v1.31.3+rke2r1"
@@ -30,7 +29,6 @@ first_node_install: false
 # Cluster domain name (https://docs.rke2.io/install/install_options/server_config/)
 cluster_domain:
 
-
 #####################################################################
 # CNI Configuration
 #####################################################################
@@ -42,28 +40,27 @@ cni_plugin: calico
 install_calicoctl: true
 calicoctl_version: "v3.29.1"
 
-
 #####################################################################
 # Cluster Network Configuration
 #####################################################################
 
-# Cluster cidr (Define IP address space used for pods) 
+# Cluster cidr (Define IP address space used for pods)
 # Make sure to configure both IPv4 and IPv6 if you deploy a dualstack cluster)
 # example: "198.18.0.0/16,fcfe::43:0:0/96"
 cluster_cidr:
 
-# Service cidr (Define IP address space used for services) 
+# Service cidr (Define IP address space used for services)
 # Make sure to configure both IPv4 and IPv6 if you deploy a dualstack cluster
 # example: "198.18.254.0/24,fcfe::43:ffff:0/112"
 service_cidr:
 
-# Define <IPv4>,<IPv6> address of each k8s node explicitly. 
-# FIXME Use Ansible information to fill this automatically 
-node_ips: 
+# Define <IPv4>,<IPv6> address of each k8s node explicitly.
+# FIXME Use Ansible information to fill this automatically
+node_ips:
 
-# Configure the ip range size each cluster node will receive. Make sure that both cidrs are 
+# Configure the ip range size each cluster node will receive. Make sure that both cidrs are
 # smaller then the cluster_cidr! Each node will receive a /{node_cidr_mask_ipv4} and /{node_cidr_mask_ipv4}
-# which the node uses to hand out ips to its pods. 
+# which the node uses to hand out ips to its pods.
 node_cidr_mask_ipv4: 24
 node_cidr_mask_ipv6: 112
 
@@ -77,7 +74,7 @@ control_plane_vip_hostname:
 # Interface on which the control plane will ARP for the VIP
 control_plane_vip_interface:
 
-# Kube VIP Version - See https://github.com/kube-vip/kube-vip/releases 
+# Kube VIP Version - See https://github.com/kube-vip/kube-vip/releases
 kube_vip_version: v0.6.4
 kube_vip_image: "ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }}"
 
@@ -90,7 +87,6 @@ kubectl_install_on_nodes: true
 # Find out version: curl -L https://dl.k8s.io/release/stable.txt
 kubectl_version: v1.23.0
 
-
 #####################################################################
 # kubectl Configuration
 #####################################################################
@@ -99,12 +95,11 @@ kubectl_version: v1.23.0
 fetch_kube_config: true
 local_kube_config_path: "~/.kube/config-{{ cluster_name }}"
 
-
 #####################################################################
 # misc Configuration
 #####################################################################
 
-# Print valuable role debug output 
+# Print valuable role debug output
 debug_output: false
 
 # Install the necessary linux dependencies for a longhorn cluster within the rke2 cluster
