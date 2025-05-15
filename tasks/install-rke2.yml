@@ -50,7 +50,6 @@
 - name: Confirm installation
   ansible.builtin.pause:
     prompt: Is the agent type mapping from the last step correct? If yes press ENTER to continue or Ctrl+C to abort"
-  run_once: true
   when: not install_script.stat.exists
 
 - name: Execute Install Script
