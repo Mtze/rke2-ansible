@@ -75,7 +75,7 @@ control_plane_vip_hostname:
 control_plane_vip_interface:
 
 # Kube VIP Version - See https://github.com/kube-vip/kube-vip/releases
-kube_vip_version: v0.6.4
+kube_vip_version: "v0.9.1"
 kube_vip_image: "ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }}"
 
 # Control Plane node wich is used to register all other nodes - Set this to `control_plane_vip_hostname` if you use kube-vip
@@ -85,7 +85,7 @@ control_plane_server: "https://{{ control_plane_vip_hostname }}:9345"
 
 kubectl_install_on_nodes: true
 # Find out version: curl -L https://dl.k8s.io/release/stable.txt
-kubectl_version: v1.23.0
+kubectl_version: v1.33.0
 
 #####################################################################
 # kubectl Configuration
