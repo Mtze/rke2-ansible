@@ -39,7 +39,7 @@ cni_plugin: calico
 # If Calico is defined as CNI - install calicoctl on nodes
 install_calicoctl: true
 calicoctl_version: "v3.29.1"
-calicoctl_host_architecture: "{% if ansible_facts.ansible_architecture == 'x86_64' %}amd64{% else %}arm64{% endif %}"
+calicoctl_host_architecture: "{% if ansible_architecture == 'x86_64' %}amd64{% else %}arm64{% endif %}"
 
 #####################################################################
 # Cluster Network Configuration
