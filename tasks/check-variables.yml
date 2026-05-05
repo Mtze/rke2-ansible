@@ -32,9 +32,9 @@
 
 - name: Warn about untested distributions
   ansible.builtin.debug:
-    msg: "WARNING: This role is primarily tested on Ubuntu. Your distribution ({{ ansible_distribution }}) may work but hasn't been extensively tested."
+    msg: "WARNING: This role is primarily tested on Ubuntu and Debian. Your distribution ({{ ansible_distribution }}) may work but hasn't been extensively tested."
   when:
-    - ansible_distribution != "Ubuntu"
+    - ansible_distribution not in ["Ubuntu", "Debian"]
   tags:
     - always
     - validate

@@ -22,7 +22,6 @@
 - name: Show file status for install script
   ansible.builtin.debug:
     var: install_script
-    verbosity: 1
   when:
     - debug_output
   tags:
@@ -47,10 +46,9 @@
 - name: Show variable contents for rke2 config
   ansible.builtin.debug:
     msg: |
-      Variable - control_plane_server       {{ control_plane_server       }}
-      Variable - control_plane_vip          {{ control_plane_vip          }}
+      Variable - control_plane_server       {{ control_plane_server }}
+      Variable - control_plane_vip          {{ control_plane_vip }}
       Variable - control_plane_vip_hostname {{ control_plane_vip_hostname }}
-    verbosity: 1
   when:
     - debug_output
   tags:
@@ -71,7 +69,6 @@
 - name: What will be installed to the node?
   ansible.builtin.debug:
     var: rke2_node_type
-    verbosity: 1
   when:
     - debug_output
   tags:
@@ -104,7 +101,6 @@
   ansible.builtin.fetch:
     src: /etc/rancher/rke2/rke2.yaml
     dest: "{{ local_kube_config_path }}"
-    mode: '0600'
     flat: true
   run_once: true
   delegate_facts: true

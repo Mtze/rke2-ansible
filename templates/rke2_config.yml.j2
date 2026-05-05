@@ -16,13 +16,14 @@ server: {{ control_plane_server }}
 
 tls-san:
   - {{ ansible_hostname }}
+  - {{ inventory_hostname }}
 {% if control_plane_vip is defined and control_plane_vip %}
   - {{ control_plane_vip }}
 {% endif %}
 {% if control_plane_vip_hostname is defined and control_plane_vip_hostname %}
   - {{ control_plane_vip_hostname }}
 {% endif %}
-{% for h in additional_hostnames %}
+{% for h in additional_hostnames | default([]) %}
   - {{ h }}
 {% endfor %}
 

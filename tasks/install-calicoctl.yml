@@ -1,7 +1,6 @@
 ---
 
 - name: Check current calicoctl version
-  become: true
   ansible.builtin.command: /usr/local/bin/calicoctl version --output=json
   register: calicoctl_current_version
   failed_when: false
@@ -19,7 +18,7 @@
     owner: root
     group: root
     validate_certs: true
-    checksum: "{{ calicoctl_checksum | default(omit) }}"
+    checksum: "{{ calicoctl_checksum | default(omit, true) }}"
   when: >
     calicoctl_current_version.rc != 0 or
     calicoctl_version not in calicoctl_current_version.stdout

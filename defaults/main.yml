@@ -30,9 +30,8 @@ first_node_install: false
 # Cluster domain name (https://docs.rke2.io/install/install_options/server_config/)
 cluster_domain:
 
-# Additional hostnames to add to TLS SANs
-additional_hostnames:
-  - "{{ inventory_hostname }}"
+# Additional hostnames to add to TLS SANs (inventory_hostname and ansible_hostname are always included)
+additional_hostnames: []
 
 #####################################################################
 # CNI Configuration

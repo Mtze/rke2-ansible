@@ -1,6 +1,10 @@
 ---
 # This block tries to find the token on one of the nodes if it is not defined by hand
 - name: Find and propagate cluster token
+  when:
+    - cluster_token is not defined or not cluster_token
+  tags:
+    - configure
   block:
     - name: Fetch cluster token from node
       become: true
@@ -15,8 +19,6 @@
     - name: Print returned information
       ansible.builtin.debug:
         msg: "{{ remote_token['content'] | b64decode | trim }}"
-        verbosity: 1
-      no_log: "{{ not debug_output }}"
       when:
         - debug_output
         - rke2_node_type == "server"
@@ -41,7 +43,6 @@
     - name: Print returned information
       ansible.builtin.debug:
         msg: "{{ cluster_token }}"
-        verbosity: 1
       when:
         - debug_output
       tags:
@@ -51,15 +52,13 @@
     - name: Warn about cluster token retrieval failure
       ansible.builtin.debug:
         msg: "WARNING: Could not retrieve cluster token from server node. Ensure cluster_token is set manually or the first server node is accessible."
-
-  when:
-    - cluster_token is not defined or not cluster_token
-  tags:
-    - configure
+      tags:
+        - configure
 
 - name: Cluster token defined?
   ansible.builtin.debug:
-    msg: "{{ cluster_token }}"
-    verbosity: 1
+    msg: "{{ cluster_token | default('<undefined>') }}"
+  when:
+    - debug_output
   tags:
     - configure

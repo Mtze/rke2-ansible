@@ -1,7 +1,6 @@
 ---
 
 - name: Check current kubectl version
-  become: true
   ansible.builtin.command: /usr/local/bin/kubectl version --client --output=json
   register: kubectl_current_version
   failed_when: false
@@ -19,7 +18,7 @@
     owner: root
     group: root
     validate_certs: true
-    checksum: "{{ kubectl_checksum | default(omit) }}"
+    checksum: "{{ kubectl_checksum | default(omit, true) }}"
   when: >
     kubectl_current_version.rc != 0 or
     kubectl_version not in kubectl_current_version.stdout
