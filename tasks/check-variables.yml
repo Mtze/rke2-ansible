@@ -1,7 +1,40 @@
 ---
-- name: Check if rke2_node_type is valid
-  fail:
-    msg: "Only 'agent' and 'server' are valid for rke2_node_type. You provided '{{ rke2_node_type }}' - Please make sure to set the variable for each node!"
+- name: Validate rke2_node_type is defined
+  ansible.builtin.assert:
+    that:
+      - rke2_node_type is defined
+      - rke2_node_type | length > 0
+    fail_msg: "rke2_node_type is not defined! Please set the variable for each node. Valid values are 'server' or 'agent'."
+    success_msg: "rke2_node_type is defined: {{ rke2_node_type }}"
+  tags:
+    - always
+    - validate
+
+- name: Validate rke2_node_type value
+  ansible.builtin.assert:
+    that:
+      - rke2_node_type in ["server", "agent"]
+    fail_msg: "Only 'agent' and 'server' are valid for rke2_node_type. You provided '{{ rke2_node_type }}' - Please make sure to set the variable correctly for each node!"
+    success_msg: "rke2_node_type is valid: {{ rke2_node_type }}"
+  tags:
+    - always
+    - validate
+
+- name: Check OS family compatibility
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family in ["Debian", "RedHat", "Suse"]
+    fail_msg: "Unsupported OS family: {{ ansible_os_family }}. This role is tested on Debian, RedHat, and Suse families."
+    success_msg: "OS family {{ ansible_os_family }} is supported."
+  tags:
+    - always
+    - validate
+
+- name: Warn about untested distributions
+  ansible.builtin.debug:
+    msg: "WARNING: This role is primarily tested on Ubuntu. Your distribution ({{ ansible_distribution }}) may work but hasn't been extensively tested."
   when:
-    - rke2_node_type != "server"
-    - rke2_node_type != "agent"
+    - ansible_distribution != "Ubuntu"
+  tags:
+    - always
+    - validate

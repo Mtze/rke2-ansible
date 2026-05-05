@@ -1,15 +1,43 @@
 ---
 
+- name: Check current kubectl version
+  become: true
+  ansible.builtin.command: /usr/local/bin/kubectl version --client --output=json
+  register: kubectl_current_version
+  failed_when: false
+  changed_when: false
+  tags:
+    - install
+    - kubectl
+
 - name: Download and install kubectl
   become: true
-  get_url:
-    url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/amd64/kubectl"
+  ansible.builtin.get_url:
+    url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}/kubectl"
     dest: /usr/local/bin/kubectl
-    force: true
-    mode: "+rx"
+    mode: '0755'
+    owner: root
+    group: root
+    validate_certs: true
+    checksum: "{{ kubectl_checksum | default(omit) }}"
+  when: >
+    kubectl_current_version.rc != 0 or
+    kubectl_version not in kubectl_current_version.stdout
+  retries: 3
+  delay: 5
+  tags:
+    - install
+    - kubectl
+    - download
 
 - name: Ensure .kube folder is present for root user
   become: true
-  file:
+  ansible.builtin.file:
     path: /root/.kube
     state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  tags:
+    - install
+    - kubectl

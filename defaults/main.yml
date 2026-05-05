@@ -11,6 +11,7 @@ rke2_download_url: https://get.rke2.io
 rke2_download_path: /opt
 
 # RKE2 Cluster node type - Can be agent or server - Make sure to set the variable for agent nodes!
+# This variable MUST be set for each node. No default is provided to prevent misconfiguration.
 rke2_node_type:
 
 # RKE2 Version to be installed - see https://github.com/rancher/rke2/releases
@@ -19,15 +20,19 @@ rke2_version: "v1.31.3+rke2r1"
 # Cluster Token (Will be set automatically if not defined)
 cluster_token:
 
-# Disabled components  (valid items: rke2-coredns, rke2-ingress-nginx, rke2-kube-proxy, rke2-metrics-server)
+# Disabled components (valid items: rke2-coredns, rke2-ingress-nginx, rke2-kube-proxy, rke2-metrics-server)
 disabled_components:
   - rke2-ingress-nginx
 
-# First node install (Set this to true to generate a Token. Must be executed on one host only!
+# First node install (Set this to true to generate a Token. Must be executed on one host only!)
 first_node_install: false
 
 # Cluster domain name (https://docs.rke2.io/install/install_options/server_config/)
 cluster_domain:
+
+# Additional hostnames to add to TLS SANs
+additional_hostnames:
+  - "{{ inventory_hostname }}"
 
 #####################################################################
 # CNI Configuration
@@ -40,6 +45,10 @@ cni_plugin: calico
 install_calicoctl: true
 calicoctl_version: "v3.29.1"
 calicoctl_host_architecture: "{% if ansible_architecture == 'x86_64' %}amd64{% else %}arm64{% endif %}"
+
+# Optional: SHA256 checksum for calicoctl binary verification (leave empty to skip verification)
+# Example: calicoctl_checksum: "sha256:1234567890abcdef..."
+calicoctl_checksum:
 
 #####################################################################
 # Cluster Network Configuration
@@ -78,19 +87,24 @@ control_plane_vip_interface:
 # Kube VIP Version - See https://github.com/kube-vip/kube-vip/releases
 kube_vip_version: "v0.9.1"
 kube_vip_image: "ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }}"
+kube_vip_rbac_manifest_url: "https://kube-vip.io/manifests/rbac.yaml"
 
-# Control Plane node wich is used to register all other nodes - Set this to `control_plane_vip_hostname` if you use kube-vip
+# Control Plane node which is used to register all other nodes - Set this to `control_plane_vip_hostname` if you use kube-vip
 # Important! This entry has to have the form:
 # https://<your-host>:<your-port>
 control_plane_server: "https://{{ control_plane_vip_hostname }}:9345"
+
+#####################################################################
+# kubectl Configuration
+#####################################################################
 
 kubectl_install_on_nodes: true
 # Find out version: curl -L https://dl.k8s.io/release/stable.txt
 kubectl_version: v1.33.0
 
-#####################################################################
-# kubectl Configuration
-#####################################################################
+# Optional: SHA256 checksum for kubectl binary verification (leave empty to skip verification)
+# Example: kubectl_checksum: "sha256:1234567890abcdef..."
+kubectl_checksum:
 
 # Download kubeconfig from cluster to local machine?
 fetch_kube_config: true

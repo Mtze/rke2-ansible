@@ -1,13 +1,13 @@
-{% if cluster_token is not none %}
+{% if cluster_token is defined and cluster_token %}
 token: {{ cluster_token }}
 {% endif %}
 
 
 {# Only add server configuration if it is not the first node - Configure VIP as server if kube-vip is used #}
 {% if not first_node_install %}
-{% if control_plane_vip is not none and control_plane_vip_hostname is not none %}
+{% if control_plane_vip is defined and control_plane_vip and control_plane_vip_hostname is defined and control_plane_vip_hostname %}
 server: https://{{ control_plane_vip_hostname }}:9345
-{% elif control_plane_vip is not none %}
+{% elif control_plane_vip is defined and control_plane_vip %}
 server: https://{{ control_plane_vip }}:9345
 {% else %}
 server: {{ control_plane_server }}
@@ -16,10 +16,10 @@ server: {{ control_plane_server }}
 
 tls-san:
   - {{ ansible_hostname }}
-{% if control_plane_vip is not none %}
+{% if control_plane_vip is defined and control_plane_vip %}
   - {{ control_plane_vip }}
 {% endif %}
-{% if control_plane_vip_hostname is not none %}
+{% if control_plane_vip_hostname is defined and control_plane_vip_hostname %}
   - {{ control_plane_vip_hostname }}
 {% endif %}
 {% for h in additional_hostnames %}
@@ -29,7 +29,7 @@ tls-san:
 cni: {{ cni_plugin }}
 
 
-{% if disabled_components is not none %}
+{% if disabled_components is defined and disabled_components %}
 disable:
 {% for disabled_component in disabled_components %}
   - {{ disabled_component }}
@@ -38,26 +38,26 @@ disable:
 
 
 {# Define the Cluster domain if it is configured as variable #}
-{% if cluster_domain is not none %}
+{% if cluster_domain is defined and cluster_domain %}
 cluster-domain: "{{ cluster_domain }}"
 {% endif %}
 
 {# Define the Cluster cidr if it is configured as variable #}
-{% if cluster_cidr is not none %}
+{% if cluster_cidr is defined and cluster_cidr %}
 cluster-cidr: "{{ cluster_cidr }}"
 {% endif %}
 
 {# Define the service cidr if it is configured as variable #}
-{% if service_cidr is not none %}
+{% if service_cidr is defined and service_cidr %}
 service-cidr: "{{ service_cidr }}"
 {% endif %}
 
 {# Define Node IP adresses explicitly #}
-{% if node_ips is not none %}
+{% if node_ips is defined and node_ips %}
 node-ip: "{{ node_ips }}"
 {% endif %}
 
-{% if node_cidr_mask_ipv4 is not none and node_cidr_mask_ipv6 is not none  %}
+{% if node_cidr_mask_ipv4 is defined and node_cidr_mask_ipv4 and node_cidr_mask_ipv6 is defined and node_cidr_mask_ipv6 %}
 kube-controller-manager-arg:
   - "node-cidr-mask-size-ipv4={{ node_cidr_mask_ipv4 }}"
   - "node-cidr-mask-size-ipv6={{ node_cidr_mask_ipv6 }}"
