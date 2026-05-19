@@ -1,5 +1,4 @@
 ---
 # vars file for rke2-ansible
-
-additional_hostnames:
-  - "{{ inventory_hostname }}"
+# Variables here have high precedence and cannot be easily overridden
+# Use defaults/main.yml for user-configurable variables

@@ -1,9 +1,30 @@
 ---
 
-- name: Download and install calicoctl 
+- name: Check current calicoctl version
+  ansible.builtin.command: /usr/local/bin/calicoctl version --output=json
+  register: calicoctl_current_version
+  failed_when: false
+  changed_when: false
+  tags:
+    - install
+    - calico
+
+- name: Download and install calicoctl
   become: true
-  get_url:
+  ansible.builtin.get_url:
     url: "https://github.com/projectcalico/calico/releases/download/{{ calicoctl_version }}/calicoctl-linux-{{ calicoctl_host_architecture }}"
     dest: /usr/local/bin/calicoctl
-    force: true
-    mode: "+rx"
+    mode: '0755'
+    owner: root
+    group: root
+    validate_certs: true
+    checksum: "{{ calicoctl_checksum | default(omit, true) }}"
+  when: >
+    calicoctl_current_version.rc != 0 or
+    calicoctl_version not in calicoctl_current_version.stdout
+  retries: 3
+  delay: 5
+  tags:
+    - install
+    - calico
+    - download

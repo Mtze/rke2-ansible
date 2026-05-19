@@ -1,0 +1,11 @@
+---
+- name: Restart RKE2 service
+  become: true
+  ansible.builtin.service:
+    name: "rke2-{{ rke2_node_type }}"
+    state: restarted
+  when:
+    - rke2_node_type is defined
+  throttle: 1
+  tags:
+    - configure
