@@ -11,38 +11,6 @@
     - install
     - configure
 
-- name: Check if install is necessary
-  become: true
-  ansible.builtin.stat:
-    path: "{{ rke2_download_path }}/install.sh"
-  register: install_script
-  tags:
-    - install
-
-- name: Show file status for install script
-  ansible.builtin.debug:
-    var: install_script
-  when:
-    - debug_output
-  tags:
-    - install
-
-- name: Get RKE2 install script
-  become: true
-  ansible.builtin.get_url:
-    url: "{{ rke2_download_url }}"
-    dest: "{{ rke2_download_path }}/install.sh"
-    mode: '0755'
-    owner: root
-    group: root
-    validate_certs: true
-  when: not install_script.stat.exists
-  retries: 3
-  delay: 5
-  tags:
-    - install
-    - download
-
 - name: Show variable contents for rke2 config
   ansible.builtin.debug:
     msg: |
@@ -54,6 +22,21 @@
   tags:
     - configure
 
+- name: Deploy the audit policy
+  become: true
+  ansible.builtin.copy:
+    src: audit-policy.yaml
+    dest: /etc/rancher/rke2/audit-policy.yaml
+    owner: root
+    group: root
+    mode: '0600'
+  when:
+    - rke2_node_type == "server"
+    - rke2_audit_log
+  notify: Restart RKE2 service
+  tags:
+    - configure
+
 - name: Deploy rancher rke2 config
   become: true
   ansible.builtin.template:
@@ -62,6 +45,7 @@
     owner: root
     group: root
     mode: '0600'
+  diff: false  # the config holds the cluster token
   notify: Restart RKE2 service
   tags:
     - configure
@@ -74,16 +58,13 @@
   tags:
     - install
 
-- name: Execute install script
-  become: true
-  ansible.builtin.command: "sh {{ rke2_download_path }}/install.sh"
-  environment:
-    INSTALL_RKE2_TYPE: "{{ rke2_node_type }}"
-    INSTALL_RKE2_VERSION: "{{ rke2_version }}"
-  when: not install_script.stat.exists
-  changed_when: true
-  tags:
-    - install
+- name: Install RKE2 on a new node
+  ansible.builtin.import_tasks: run-install-script.yml
+  when: rke2_installed_version | length == 0
+
+- name: Prepare the node for the CIS profile
+  ansible.builtin.import_tasks: prepare-cis.yml
+  when: rke2_cis_profile | length > 0
 
 # RKE2 only allows one node to be in learner state - Hence we need to start one node after the other!
 - name: Enable and start RKE2 service
@@ -108,6 +89,24 @@
     - rke2_node_type == "server"
     - fetch_kube_config
     - local_kube_config_path is defined
-    - local_kube_config_path
+    - local_kube_config_path | length > 0
+  tags:
+    - configure
+
+- name: Point the fetched kubeconfig at the control plane VIP
+  ansible.builtin.replace:
+    path: "{{ local_kube_config_path }}"
+    regexp: 'https://127\.0\.0\.1:6443'
+    replace: "https://{{ control_plane_vip_hostname | default(control_plane_vip, true) }}:6443"
+    mode: '0600'
+  delegate_to: localhost
+  become: false
+  run_once: true
+  when:
+    - rke2_node_type == "server"
+    - fetch_kube_config
+    - local_kube_config_path is defined
+    - local_kube_config_path | length > 0
+    - control_plane_vip | default('', true) | length > 0
   tags:
     - configure

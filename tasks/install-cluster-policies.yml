@@ -1,0 +1,60 @@
+---
+- name: Ensure rke2 manifest auto install dir exists
+  become: true
+  ansible.builtin.file:
+    path: /var/lib/rancher/rke2/server/manifests/
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  tags:
+    - install
+    - policies
+
+- name: Deploy the control plane toleration policy
+  become: true
+  ansible.builtin.template:
+    src: control-plane-policy.yml.j2
+    dest: /var/lib/rancher/rke2/server/manifests/rke2-control-plane-policy.yaml
+    owner: root
+    group: root
+    mode: '0644'
+  when: rke2_control_plane_policy | length > 0
+  register: rke2_control_plane_policy_manifest
+  tags:
+    - install
+    - policies
+
+- name: Deploy the node port protection
+  become: true
+  ansible.builtin.template:
+    src: calico-node-ports-policy.yml.j2
+    dest: /var/lib/rancher/rke2/server/manifests/rke2-node-ports-policy.yaml
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - cni_plugin == "calico"
+    - rke2_protected_node_networks | length > 0
+  register: rke2_node_ports_manifest
+  tags:
+    - install
+    - policies
+
+# RKE2 can take until its next restart to notice a changed manifest, and a policy must not wait
+# for that. The retries cover a bootstrap, where the Calico resources do not exist yet.
+- name: Apply changed policies now
+  become: true
+  ansible.builtin.command:
+    argv: "{{ rke2_kubectl + ['apply', '-f', item.dest] }}"
+  register: rke2_policy_apply
+  until: rke2_policy_apply.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: true
+  loop: "{{ [rke2_control_plane_policy_manifest, rke2_node_ports_manifest] | selectattr('changed') | list }}"
+  loop_control:
+    label: "{{ item.dest }}"
+  tags:
+    - install
+    - policies

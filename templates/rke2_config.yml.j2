@@ -1,10 +1,13 @@
-{% if cluster_token is defined and cluster_token %}
+{# Agents join with the agent token whenever the server offers one #}
+{% if rke2_node_type == "agent" and rke2_agent_join_token is defined and rke2_agent_join_token %}
+token: {{ rke2_agent_join_token }}
+{% elif cluster_token is defined and cluster_token %}
 token: {{ cluster_token }}
 {% endif %}
 
 
 {# Only add server configuration if it is not the first node - Configure VIP as server if kube-vip is used #}
-{% if not first_node_install %}
+{% if not rke2_bootstrap %}
 {% if control_plane_vip is defined and control_plane_vip and control_plane_vip_hostname is defined and control_plane_vip_hostname %}
 server: https://{{ control_plane_vip_hostname }}:9345
 {% elif control_plane_vip is defined and control_plane_vip %}
@@ -58,8 +61,76 @@ service-cidr: "{{ service_cidr }}"
 node-ip: "{{ node_ips }}"
 {% endif %}
 
-{% if node_cidr_mask_ipv4 is defined and node_cidr_mask_ipv4 and node_cidr_mask_ipv6 is defined and node_cidr_mask_ipv6 %}
+{% if rke2_node_labels %}
+node-label:
+{% for key, value in rke2_node_labels.items() %}
+  - "{{ key }}={{ value }}"
+{% endfor %}
+{% endif %}
+
+{% if rke2_node_taints %}
+node-taint:
+{% for taint in rke2_node_taints %}
+  - "{{ taint }}"
+{% endfor %}
+{% endif %}
+
+{% set kubelet_args = rke2_kubelet_args + (['seccomp-default=true'] if rke2_kubelet_seccomp_default else []) %}
+{% if kubelet_args %}
+kubelet-arg:
+{% for arg in kubelet_args %}
+  - "{{ arg }}"
+{% endfor %}
+{% endif %}
+
+{% if rke2_cis_profile %}
+profile: {{ rke2_cis_profile }}
+{% endif %}
+
+{# Server-only options. The S3 credentials must not reach the agents #}
+{% if rke2_node_type == "server" %}
+{% if rke2_agent_token %}
+agent-token: {{ rke2_agent_token }}
+{% endif %}
+
+{% if rke2_audit_log %}
+audit-policy-file: /etc/rancher/rke2/audit-policy.yaml
+{% endif %}
+
+{% if rke2_ingress_controller %}
+ingress-controller:
+{% for controller in rke2_ingress_controller %}
+  - {{ controller }}
+{% endfor %}
+{% endif %}
+
+{% if rke2_kube_apiserver_args %}
+kube-apiserver-arg:
+{% for arg in rke2_kube_apiserver_args %}
+  - "{{ arg }}"
+{% endfor %}
+{% endif %}
+
+{% if rke2_etcd_snapshot_schedule %}
+etcd-snapshot-schedule-cron: "{{ rke2_etcd_snapshot_schedule }}"
+{% endif %}
+{% if rke2_etcd_snapshot_retention %}
+etcd-snapshot-retention: {{ rke2_etcd_snapshot_retention }}
+{% endif %}
+{% if rke2_etcd_s3 %}
+etcd-s3: true
+{% for key, value in rke2_etcd_s3.items() %}
+etcd-s3-{{ key }}: {{ value | to_json }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{# The controller manager refuses the per-family masks on a single-stack cluster #}
+{% if ':' in (cluster_cidr | default('', true)) and node_cidr_mask_ipv4 is defined and node_cidr_mask_ipv4 and node_cidr_mask_ipv6 is defined and node_cidr_mask_ipv6 %}
 kube-controller-manager-arg:
   - "node-cidr-mask-size-ipv4={{ node_cidr_mask_ipv4 }}"
   - "node-cidr-mask-size-ipv6={{ node_cidr_mask_ipv6 }}"
+{% elif ':' not in (cluster_cidr | default('', true)) and node_cidr_mask_ipv4 is defined and node_cidr_mask_ipv4 %}
+kube-controller-manager-arg:
+  - "node-cidr-mask-size={{ node_cidr_mask_ipv4 }}"
 {% endif %}

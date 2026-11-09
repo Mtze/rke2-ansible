@@ -1,0 +1,17 @@
+---
+# Entry point for upgrades, use it through include_role with tasks_from: upgrade and serial: 1.
+- name: Include variable checks
+  ansible.builtin.import_tasks: check-variables.yml
+
+- name: Include the version check
+  ansible.builtin.import_tasks: read-installed-version.yml
+
+- name: Allow one node at a time only
+  ansible.builtin.assert:
+    that: ansible_play_batch | length == 1
+    fail_msg: "Upgrades must run with serial: 1, this batch holds {{ ansible_play_batch | length }} nodes."
+    quiet: true
+
+- name: Upgrade this node when its version differs
+  ansible.builtin.include_tasks: upgrade-node.yml
+  when: rke2_installed_version != rke2_version

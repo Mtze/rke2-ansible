@@ -1,0 +1,19 @@
+#!/bin/sh
+# Stands in for kubectl: answers reads from the environment and records every other call.
+if [ "$1" = --kubeconfig ]; then shift 2; fi
+if [ "$1" != get ]; then
+  echo "$*" >> "$FAKE_CALL_LOG"
+  exit 0
+fi
+case "$*" in
+  *--raw*) echo ok ;;
+  *jsonpath*) echo "${FAKE_READY:-True}" ;;
+  "get nodes"*) printf '%s' "$FAKE_SERVERS" ;;
+  *)
+    if [ -z "$FAKE_NODE" ]; then
+      echo "Error from server (NotFound): nodes not found" >&2
+      exit 1
+    fi
+    printf '%s' "$FAKE_NODE"
+    ;;
+esac

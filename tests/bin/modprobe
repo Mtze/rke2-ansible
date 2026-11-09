@@ -1,0 +1,2 @@
+#!/bin/sh
+echo "modprobe $*" >> "$FAKE_CALL_LOG"

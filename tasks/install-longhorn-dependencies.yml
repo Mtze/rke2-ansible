@@ -6,6 +6,7 @@
     name:
       - nfs-common
       - open-iscsi
+      - cryptsetup
     state: present
     update_cache: true
   when: ansible_os_family == "Debian"
@@ -13,9 +14,61 @@
     - install
     - longhorn
 
+- name: Prepare the node for Longhorn
+  become: true
+  when: ansible_os_family == "Debian"
+  tags:
+    - install
+    - longhorn
+  block:
+    - name: Enable iscsid
+      ansible.builtin.service:
+        name: iscsid
+        state: started
+        enabled: true
+
+    - name: Load the kernel modules Longhorn needs at boot
+      ansible.builtin.copy:
+        content: |
+          iscsi_tcp
+          dm_crypt
+        dest: /etc/modules-load.d/longhorn.conf
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Load kernel modules
+
+    - name: Check whether multipathd is installed
+      ansible.builtin.stat:
+        path: /sbin/multipathd
+      register: rke2_multipathd
+
+    - name: Ensure the multipath drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/multipath/conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      when: rke2_multipathd.stat.exists
+
+    # https://longhorn.io/kb/troubleshooting-volume-with-multipath/
+    - name: Keep multipathd away from Longhorn devices
+      ansible.builtin.copy:
+        content: |
+          blacklist {
+              devnode "^sd[a-z0-9]+"
+          }
+        dest: /etc/multipath/conf.d/longhorn.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when: rke2_multipathd.stat.exists
+      notify: Restart multipathd
+
 - name: Warn if OS family is not supported for Longhorn dependencies
   ansible.builtin.debug:
-    msg: "WARNING: Longhorn dependency installation is only configured for Debian-based systems. Your OS family is {{ ansible_os_family }}. Please install nfs-common and open-iscsi equivalents manually."
+    msg: "WARNING: Longhorn dependency installation is only configured for Debian-based systems. Your OS family is {{ ansible_os_family }}. Please install nfs-common, open-iscsi and cryptsetup equivalents manually."
   when: ansible_os_family != "Debian"
   tags:
     - install

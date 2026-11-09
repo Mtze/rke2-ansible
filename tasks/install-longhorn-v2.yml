@@ -1,0 +1,100 @@
+---
+# https://longhorn.io/docs/1.13.0/deploy/install/#v2-data-engine-requirements
+- name: Check the kernel for the Longhorn V2 Data Engine
+  ansible.builtin.assert:
+    that: ansible_kernel is version('6.7', '>=')
+    fail_msg: "The Longhorn V2 Data Engine needs kernel 6.7 or later, this node runs {{ ansible_kernel }}."
+    quiet: true
+  tags:
+    - install
+    - longhorn
+
+- name: Check that the CPU supports SSE4.2
+  ansible.builtin.command: grep -m1 -o sse4_2 /proc/cpuinfo
+  changed_when: false
+  check_mode: false
+  when: ansible_architecture == "x86_64"
+  tags:
+    - install
+    - longhorn
+
+- name: Load the kernel modules of the V2 Data Engine at boot
+  become: true
+  ansible.builtin.copy:
+    content: "{{ longhorn_v2_kernel_modules | join('\n') }}\n"
+    dest: /etc/modules-load.d/longhorn-v2.conf
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - install
+    - longhorn
+    - needs_real_host
+
+# Fails loudly here if the kernel package lacks a module, instead of later in SPDK.
+- name: Load the kernel modules of the V2 Data Engine now
+  become: true
+  ansible.builtin.command: "modprobe {{ item }}"
+  changed_when: false
+  loop: "{{ longhorn_v2_kernel_modules }}"
+  tags:
+    - install
+    - longhorn
+
+- name: Ensure the GRUB drop-in directory exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/default/grub.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - install
+    - longhorn
+    - needs_real_host
+
+- name: Reserve huge pages at boot
+  become: true
+  ansible.builtin.copy:
+    content: |
+      GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX hugepagesz=2M hugepages={{ longhorn_v2_huge_pages }}"
+    dest: /etc/default/grub.d/90-longhorn-v2.cfg
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Update GRUB
+  tags:
+    - install
+    - longhorn
+    - needs_real_host
+
+- name: Read the current huge page count
+  ansible.builtin.command: sysctl -n vm.nr_hugepages
+  register: rke2_huge_pages_before
+  changed_when: false
+  check_mode: false
+  tags:
+    - install
+    - longhorn
+
+# Takes effect without a reboot, the kubelet only has to learn about the new capacity.
+- name: Reserve huge pages now
+  become: true
+  ansible.builtin.command: "sysctl -w vm.nr_hugepages={{ longhorn_v2_huge_pages }}"
+  changed_when: true
+  when: rke2_huge_pages_before.stdout | int < longhorn_v2_huge_pages | int
+  notify: Restart RKE2 service
+  tags:
+    - install
+    - longhorn
+
+- name: Check that the kernel provided the huge pages
+  ansible.builtin.command: sysctl -n vm.nr_hugepages
+  register: rke2_huge_pages_after
+  changed_when: false
+  check_mode: false
+  failed_when: rke2_huge_pages_after.stdout | int < longhorn_v2_huge_pages | int
+  tags:
+    - install
+    - longhorn

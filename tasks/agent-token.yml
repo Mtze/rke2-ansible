@@ -1,0 +1,48 @@
+---
+# The server token grants full access to the cluster, so it must not sit on workers.
+# Servers learn a separate secret here that is only good for joining agents.
+#
+# The secret is created at bootstrap only. Adding agent-token to a running cluster leaves the
+# datastore behind, and from then on every second restart of a server fails with "passwd newer
+# than datastore". The README describes the migration, which needs rke2 token rotate.
+- name: Create and share the agent token secret
+  become: true
+  delegate_to: "{{ rke2_first_server }}"
+  no_log: true
+  when: rke2_agent_token | length == 0
+  tags:
+    - always
+  block:
+    - name: Ensure the directory for the agent token secret exists
+      ansible.builtin.file:
+        path: "{{ rke2_agent_token_file | dirname }}"
+        state: directory
+        mode: '0755'
+      when: rke2_bootstrap
+      tags:
+        - always
+
+    - name: Create the agent token secret once
+      ansible.builtin.copy:
+        content: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['hexdigits'], length=64) }}"
+        dest: "{{ rke2_agent_token_file }}"
+        mode: '0600'
+        force: false
+      when: rke2_bootstrap
+      tags:
+        - always
+
+    # Every host asks for itself, see find-cluster-token.yml. No file means no agent token yet.
+    - name: Read the agent token secret
+      ansible.builtin.slurp:
+        src: "{{ rke2_agent_token_file }}"
+      register: rke2_agent_token_secret
+      failed_when: false
+      tags:
+        - always
+
+    - name: Store the agent token secret
+      ansible.builtin.set_fact:
+        rke2_agent_token: "{{ rke2_agent_token_secret.content | default('') | b64decode | trim }}"
+      tags:
+        - always

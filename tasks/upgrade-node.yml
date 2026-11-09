@@ -1,0 +1,120 @@
+---
+- name: Set the node name for kubectl
+  ansible.builtin.set_fact:
+    rke2_kubectl_node: "{{ ansible_nodename | lower }}"
+
+# Some RKE2 tags are published without assets, the install script would only fail halfway.
+- name: Check that the release ships its assets
+  ansible.builtin.uri:
+    url: "https://github.com/rancher/rke2/releases/download/{{ rke2_version | urlencode }}/rke2.linux-{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}.tar.gz"
+    method: HEAD
+  tags:
+    - needs_real_host
+
+- name: Check whether the node runs cgroup v2
+  ansible.builtin.stat:
+    path: /sys/fs/cgroup/cgroup.controllers
+  register: rke2_cgroup_v2
+
+- name: Read the servers of the cluster
+  become: true
+  ansible.builtin.command:
+    argv: "{{ rke2_kubectl + ['get', 'nodes', '-l', 'node-role.kubernetes.io/control-plane=true', '-o', 'json'] }}"
+  delegate_to: "{{ rke2_first_server }}"
+  register: rke2_server_nodes
+  changed_when: false
+  check_mode: false
+  when: rke2_node_type == "agent"
+
+- name: Stop when this node cannot be upgraded
+  vars:
+    rke2_upgrade_problem_list: >-
+      {{ rke2_installed_version | upgrade_problems(rke2_version, rke2_node_type, rke2_cgroup_v2.stat.exists, ansible_kernel, rke2_upgrade_min_kernel,
+      (rke2_server_nodes.stdout | default('{"items": []}') | from_json)['items']) }}
+  ansible.builtin.assert:
+    that: rke2_upgrade_problem_list | length == 0
+    fail_msg: "{{ rke2_upgrade_problem_list | join('; ') }}"
+    quiet: true
+
+- name: Save an etcd snapshot before the first server moves
+  become: true
+  when:
+    - rke2_node_type == "server"
+    - inventory_hostname == rke2_first_server
+  block:
+    - name: Save the snapshot
+      ansible.builtin.command: rke2 etcd-snapshot save --name pre-upgrade
+      changed_when: true
+
+    # With S3 configured, RKE2 has already uploaded the snapshot.
+    - name: Find the snapshot
+      ansible.builtin.find:
+        paths: "{{ rke2_etcd_snapshot_dir }}"
+        patterns: "pre-upgrade-*"
+      register: rke2_snapshots
+      when: rke2_etcd_s3 | length == 0
+
+    - name: Ensure the local snapshot directory exists
+      become: false
+      ansible.builtin.file:
+        path: "{{ rke2_upgrade_snapshot_local_path }}"
+        state: directory
+        mode: '0700'
+      delegate_to: localhost
+      when: rke2_etcd_s3 | length == 0
+
+    - name: Copy the snapshot off the cluster
+      ansible.builtin.fetch:
+        src: "{{ (rke2_snapshots.files | sort(attribute='mtime') | last).path }}"
+        dest: "{{ rke2_upgrade_snapshot_local_path }}/"
+        flat: true
+      when: rke2_etcd_s3 | length == 0
+
+- name: Move the node to the new version
+  become: true
+  block:
+    - name: Read the node before it is drained
+      ansible.builtin.command:
+        argv: "{{ rke2_kubectl + ['get', 'node', rke2_kubectl_node, '-o', 'json'] }}"
+      delegate_to: "{{ rke2_first_server }}"
+      register: rke2_node_before
+      changed_when: false
+      check_mode: false
+
+    - name: Drain the node
+      ansible.builtin.command:
+        argv: "{{ rke2_kubectl + ['drain', rke2_kubectl_node] + rke2_upgrade_drain_args }}"
+      delegate_to: "{{ rke2_first_server }}"
+      changed_when: true
+
+    - name: Install the new version
+      ansible.builtin.import_tasks: run-install-script.yml
+
+    - name: Restart RKE2 and wait for the node
+      ansible.builtin.script:
+        cmd: "restart-and-wait.sh {{ rke2_node_type }} {{ rke2_kubectl_node }} {{ rke2_restart_timeout }}"
+      changed_when: true
+
+    - name: Wait for the node at the new version
+      ansible.builtin.command:
+        argv: "{{ rke2_kubectl + ['get', 'node', rke2_kubectl_node, '-o', 'json'] }}"
+      delegate_to: "{{ rke2_first_server }}"
+      register: rke2_node_after
+      until: rke2_node_after.rc == 0 and (rke2_node_after.stdout | from_json).status.nodeInfo.kubeletVersion == rke2_version
+      retries: "{{ (rke2_restart_timeout | int / 10) | int }}"
+      delay: 10
+      changed_when: false
+
+    - name: Uncordon the node
+      ansible.builtin.command:
+        argv: "{{ rke2_kubectl + ['uncordon', rke2_kubectl_node] }}"
+      delegate_to: "{{ rke2_first_server }}"
+      changed_when: true
+      when: not ((rke2_node_before.stdout | from_json).spec.unschedulable | default(false))
+
+    - name: Warn about a server that stays cordoned
+      ansible.builtin.debug:
+        msg: "WARNING: {{ rke2_kubectl_node }} was cordoned before and stays cordoned. Cordoned servers can block the RKE2 Helm jobs."
+      when:
+        - rke2_node_type == "server"
+        - (rke2_node_before.stdout | from_json).spec.unschedulable | default(false)

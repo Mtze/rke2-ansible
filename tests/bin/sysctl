@@ -1,0 +1,11 @@
+#!/bin/sh
+# Keeps vm.nr_hugepages in a file. FAKE_HUGEPAGES_LIMIT caps what the kernel can hand out.
+if [ "$1" = -n ]; then
+  cat "$FAKE_HUGEPAGES"
+  exit 0
+fi
+echo "sysctl $*" >> "$FAKE_CALL_LOG"
+wanted=${2#*=}
+limit=${FAKE_HUGEPAGES_LIMIT:-$wanted}
+if [ "$wanted" -gt "$limit" ]; then wanted=$limit; fi
+echo "$wanted" > "$FAKE_HUGEPAGES"

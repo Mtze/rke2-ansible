@@ -6,31 +6,46 @@
     - always
     - validate
 
+- name: Include the version check
+  ansible.builtin.import_tasks: read-installed-version.yml
+
+# An upgrade drains the node and moves one node at a time, a normal run must never do that.
+- name: Stop when another RKE2 version is installed
+  ansible.builtin.assert:
+    that: rke2_installed_version in ['', rke2_version]
+    fail_msg: "This node runs {{ rke2_installed_version }} but {{ rke2_version }} is wanted. Upgrade with tasks_from: upgrade and serial: 1."
+    quiet: true
+  tags:
+    - always
+
+- name: Check whether this node already holds an etcd database
+  become: true
+  ansible.builtin.stat:
+    path: /var/lib/rancher/rke2/server/db/etcd
+  register: rke2_etcd_db
+  tags:
+    - always
+
 - name: Include cluster token discovery
   ansible.builtin.include_tasks: find-cluster-token.yml
   when:
-    - not first_node_install
+    - not rke2_bootstrap
   tags:
-    - install
-    - configure
+    - always
+
+- name: Include the agent token
+  ansible.builtin.include_tasks: agent-token.yml
+  tags:
+    - always
 
 - name: Include kube-vip installation
   ansible.builtin.include_tasks: install-kube-vip.yml
   when:
-    - first_node_install
-    - control_plane_vip is defined
-    - control_plane_vip
+    - rke2_node_type == "server"
+    - control_plane_vip | default('', true) | length > 0
   tags:
     - install
     - kube-vip
-
-- name: Include kubectl installation
-  ansible.builtin.include_tasks: install-kubectl.yml
-  when:
-    - kubectl_install_on_nodes
-  tags:
-    - install
-    - kubectl
 
 - name: Include RKE2 installation
   ansible.builtin.import_tasks: install-rke2.yml
@@ -38,9 +53,41 @@
     - install
     - rke2
 
+- name: Include kubectl setup
+  ansible.builtin.include_tasks: install-kubectl.yml
+  when:
+    - kubectl_install_on_nodes
+  tags:
+    - install
+    - kubectl
+
+- name: Include cluster policies
+  ansible.builtin.include_tasks: install-cluster-policies.yml
+  when: rke2_node_type == "server"
+  tags:
+    - install
+    - policies
+
+- name: Include node pool reconciliation
+  ansible.builtin.include_tasks: reconcile-node-pool.yml
+  when: rke2_node_labels | length > 0 or rke2_node_taints | length > 0 or rke2_node_managed_prefix | length > 0
+  tags:
+    - install
+    - configure
+
 - name: Include Longhorn dependencies installation
   ansible.builtin.include_tasks: install-longhorn-dependencies.yml
   when: install_longhorn_dependencies
+  tags:
+    - install
+    - longhorn
+
+- name: Include Longhorn V2 Data Engine preparation
+  ansible.builtin.include_tasks: install-longhorn-v2.yml
+  when:
+    - install_longhorn_dependencies
+    - install_longhorn_v2_dependencies
+    - ansible_os_family == "Debian"
   tags:
     - install
     - longhorn

@@ -1,0 +1,33 @@
+{# A taint only stops pods that do not tolerate it, and anyone who can create a pod can add a toleration. #}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: rke2-control-plane-tolerations
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+  validations:
+    - expression: >-
+        !has(object.spec.tolerations) || object.spec.tolerations.all(t,
+        has(t.key) && t.key != '' && !(t.key in ['CriticalAddonsOnly', 'node-role.kubernetes.io/control-plane',
+        'node-role.kubernetes.io/etcd', 'node-role.kubernetes.io/master']))
+      message: "Pods in this namespace must not tolerate the control plane taints or every taint."
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: rke2-control-plane-tolerations
+spec:
+  policyName: rke2-control-plane-tolerations
+  validationActions: {{ ['Deny'] if rke2_control_plane_policy == 'Deny' else ['Warn', 'Audit'] }}
+  matchResources:
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: {{ rke2_system_namespaces | to_json }}

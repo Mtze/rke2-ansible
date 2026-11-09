@@ -15,14 +15,36 @@ rke2_download_path: /opt
 rke2_node_type:
 
 # RKE2 Version to be installed - see https://github.com/rancher/rke2/releases
-rke2_version: "v1.31.3+rke2r1"
+rke2_version: "v1.35.9+rke2r1"
 
 # Cluster Token (Will be set automatically if not defined)
 cluster_token:
 
+# Where RKE2 keeps its tokens on a server
+rke2_server_data_dir: /var/lib/rancher/rke2/server
+
+# Secret that lets agents join but not servers. If empty, the role creates one at bootstrap.
+# Setting it on a running cluster needs the migration in the README, or servers stop restarting.
+rke2_agent_token: ""
+rke2_agent_token_file: /etc/rancher/rke2/agent-token.key
+
 # Disabled components (valid items: rke2-coredns, rke2-ingress-nginx, rke2-kube-proxy, rke2-metrics-server)
 disabled_components:
   - rke2-ingress-nginx
+
+# Ingress controllers for the server option ingress-controller. RKE2 deploys one by default,
+# Traefik from v1.36 on, so the role asks for none. Set [traefik] to get the packaged one.
+rke2_ingress_controller: [none]
+
+# Extra kube-apiserver arguments as key=value
+rke2_kube_apiserver_args: []
+
+# etcd snapshots. Empty values keep the RKE2 defaults, every 12 hours and 5 snapshots.
+rke2_etcd_snapshot_schedule: ""
+rke2_etcd_snapshot_retention: ""
+
+# Options for snapshots on S3 without the etcd-s3- prefix, for example {endpoint: s3.example.com, bucket: etcd}
+rke2_etcd_s3: {}
 
 # First node install (Set this to true to generate a Token. Must be executed on one host only!)
 first_node_install: false
@@ -33,6 +55,21 @@ cluster_domain:
 # Additional hostnames to add to TLS SANs (inventory_hostname and ansible_hostname are always included)
 additional_hostnames: []
 
+# Server that hands out the cluster token and runs kubectl for the other nodes. Defaults to the
+# first server in the inventory with the same cluster_name, both have to be inventory variables.
+# Falls back to the first host of the play, so set it when rke2_node_type comes from play vars.
+rke2_first_server: >-
+  {{ groups['all'] | map('extract', hostvars)
+  | selectattr('rke2_node_type', 'defined') | selectattr('rke2_node_type', 'eq', 'server')
+  | selectattr('cluster_name', 'defined') | selectattr('cluster_name', 'eq', cluster_name)
+  | map(attribute='inventory_hostname') | first | default(ansible_play_hosts | first) }}
+
+# kubectl as shipped by RKE2, only used on servers
+rke2_kubectl:
+  - /var/lib/rancher/rke2/bin/kubectl
+  - --kubeconfig
+  - /etc/rancher/rke2/rke2.yaml
+
 #####################################################################
 # CNI Configuration
 #####################################################################
@@ -42,10 +79,10 @@ cni_plugin: calico
 
 # If Calico is defined as CNI - install calicoctl on nodes
 install_calicoctl: true
-calicoctl_version: "v3.31.4"
+calicoctl_version: "v3.32.2"
 calicoctl_host_architecture: "{% if ansible_architecture == 'x86_64' %}amd64{% else %}arm64{% endif %}"
 
-# Optional: SHA256 checksum for calicoctl binary verification (leave empty to skip verification)
+# Optional: SHA256 checksum for calicoctl. Empty verifies against the checksums of the Calico release.
 # Example: calicoctl_checksum: "sha256:1234567890abcdef..."
 calicoctl_checksum:
 
@@ -63,15 +100,36 @@ cluster_cidr:
 # example: "198.18.254.0/24,fcfe::43:ffff:0/112"
 service_cidr:
 
-# Define <IPv4>,<IPv6> address of each k8s node explicitly.
-# FIXME Use Ansible information to fill this automatically
-node_ips:
+# <IPv4>,<IPv6> address of each k8s node. Comes from the default route, IPv6 only on dual-stack clusters.
+# Set this per host on nodes where the cluster should use another interface.
+node_ips: >-
+  {{ [ansible_default_ipv4.address | default(''),
+  (ansible_default_ipv6.address | default('')) if ':' in (cluster_cidr | default('', true)) else '']
+  | select | join(',') }}
 
 # Configure the ip range size each cluster node will receive. Make sure that both cidrs are
 # smaller then the cluster_cidr! Each node will receive a /{node_cidr_mask_ipv4} and /{node_cidr_mask_ipv4}
 # which the node uses to hand out ips to its pods.
 node_cidr_mask_ipv4: 24
 node_cidr_mask_ipv6: 112
+
+#####################################################################
+# Node Pool Configuration
+#####################################################################
+
+# Applied at registration by RKE2, and through kubectl on nodes that have already joined
+rke2_node_labels: {}
+rke2_node_taints: []
+
+# Labels and taints with this key prefix that are no longer listed above get removed from the
+# node, for example "example.com/". Empty means the role only sets and never removes.
+rke2_node_managed_prefix: ""
+
+# Extra kubelet arguments, for example reservations and eviction thresholds
+rke2_kubelet_args: []
+
+# Give pods the seccomp profile of the container runtime unless they ask for another one
+rke2_kubelet_seccomp_default: true
 
 #####################################################################
 # Kube-VIP Control Plane Configuration
@@ -84,9 +142,11 @@ control_plane_vip_hostname:
 control_plane_vip_interface:
 
 # Kube VIP Version - See https://github.com/kube-vip/kube-vip/releases
-kube_vip_version: "v0.9.1"
-kube_vip_image: "ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }}"
-kube_vip_rbac_manifest_url: "https://kube-vip.io/manifests/rbac.yaml"
+kube_vip_version: "v1.3.1"
+# Image digests of the versions this role was tested with, other versions go by their tag
+kube_vip_digests:
+  v1.3.1: sha256:1962f9daf226503f7e6b107f595cb28b7917fd2d0113957075e19a3e5a6c1e33
+kube_vip_image: "ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }}{{ '@' ~ kube_vip_digests[kube_vip_version] if kube_vip_version in kube_vip_digests else '' }}"
 
 # Control Plane node which is used to register all other nodes - Set this to `control_plane_vip_hostname` if you use kube-vip
 # Important! This entry has to have the form:
@@ -97,17 +157,57 @@ control_plane_server: "https://{{ control_plane_vip_hostname }}:9345"
 # kubectl Configuration
 #####################################################################
 
+# Link the kubectl shipped with RKE2 into the PATH and give root a working kubeconfig
 kubectl_install_on_nodes: true
-# Find out version: curl -L https://dl.k8s.io/release/stable.txt
-kubectl_version: v1.33.0
-
-# Optional: SHA256 checksum for kubectl binary verification (leave empty to skip verification)
-# Example: kubectl_checksum: "sha256:1234567890abcdef..."
-kubectl_checksum:
 
 # Download kubeconfig from cluster to local machine?
 fetch_kube_config: true
 local_kube_config_path: "~/.kube/config-{{ cluster_name }}"
+
+#####################################################################
+# Security Configuration
+#####################################################################
+
+# Write an API server audit log with who did what, without request content. Servers only.
+rke2_audit_log: true
+
+# Set to "cis" to run the RKE2 CIS profile. Prepares the host, on fresh installations only.
+rke2_cis_profile: ""
+
+# Namespaces that may tolerate the control plane taints and reach the node ports
+rke2_system_namespaces:
+  - kube-system
+  - calico-system
+  - tigera-operator
+
+# Admission policy against workloads on servers: Warn only reports, Deny refuses the pod, empty turns it off.
+# Add every namespace with a DaemonSet that tolerates all taints to rke2_system_namespaces before using Deny.
+rke2_control_plane_policy: Warn
+
+# Node addresses as CIDRs. With Calico, pods outside rke2_system_namespaces then cannot reach these ports.
+rke2_protected_node_networks: []
+rke2_protected_node_ports: [2379, 2380, 9345, 10249, 10250, 10256, 10257, 10259]
+
+#####################################################################
+# Upgrade Configuration (tasks_from: upgrade)
+#####################################################################
+
+# Arguments for kubectl drain. A single-server cluster needs --disable-eviction and --force,
+# because nothing can move away.
+rke2_upgrade_drain_args:
+  - --ignore-daemonsets
+  - --delete-emptydir-data
+  - --timeout=600s
+
+# runc 1.4 does not start on kernel 5.4
+rke2_upgrade_min_kernel: "5.10"
+
+# Without rke2_etcd_s3 the snapshot taken before the upgrade is copied here. It holds all secrets of the cluster.
+rke2_upgrade_snapshot_local_path: "~/rke2-etcd-snapshots/{{ cluster_name }}"
+rke2_etcd_snapshot_dir: /var/lib/rancher/rke2/server/db/snapshots
+
+# Seconds a restarted node gets to become healthy
+rke2_restart_timeout: 600
 
 #####################################################################
 # misc Configuration
@@ -118,3 +218,10 @@ debug_output: false
 
 # Install the necessary linux dependencies for a longhorn cluster within the rke2 cluster
 install_longhorn_dependencies: true
+
+# Prepare the node for the Longhorn V2 Data Engine: kernel modules and huge pages.
+# Set this per node pool on every node that stores or attaches V2 volumes.
+install_longhorn_v2_dependencies: false
+
+# Huge pages of 2 MiB for SPDK, Longhorn asks for 1024
+longhorn_v2_huge_pages: 1024

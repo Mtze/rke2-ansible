@@ -1,0 +1,2 @@
+#!/bin/sh
+echo "install $INSTALL_RKE2_TYPE $INSTALL_RKE2_VERSION" >> "$FAKE_CALL_LOG"

@@ -8,14 +8,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v7
 
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v7
       with:
-        python-version: '3.9'
+        python-version: '3.13'
 
     - name: Install python dependencies 
       run: pip install -r requirements.txt
 
     - name: Execute ansible-lint
       run: ansible-lint
+
+    - name: Run the role tests
+      run: ansible-playbook -i tests/inventory.yml tests/main.yml --skip-tags needs_real_host

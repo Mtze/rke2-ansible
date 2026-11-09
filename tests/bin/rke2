@@ -1,0 +1,9 @@
+#!/bin/sh
+# Stands in for the rke2 binary.
+if [ "$1" = --version ]; then
+  echo "rke2 version $FAKE_RKE2_VERSION (abc123)"
+  echo "go version go1.25"
+  exit 0
+fi
+echo "rke2 $*" >> "$FAKE_CALL_LOG"
+touch "$FAKE_SNAPSHOT_DIR/pre-upgrade-node-1"
