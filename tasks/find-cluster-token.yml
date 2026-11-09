@@ -1,64 +1,64 @@
 ---
-# This block tries to find the token on one of the nodes if it is not defined by hand
-- name: Find and propagate cluster token
+# Every host asks for itself. run_once would hang the decision on the first host of the play,
+# and that host may still hold a token from an earlier play while the others have none.
+- name: Find the cluster token
   when:
     - cluster_token is not defined or not cluster_token
   tags:
-    - configure
+    - always
   block:
-    - name: Fetch cluster token from node
+    # Ask a fixed server instead of the first play host, with --limit <pool> the play holds only agents.
+    - name: Fetch cluster token from the first server
       become: true
       ansible.builtin.slurp:
-        src: /var/lib/rancher/rke2/server/node-token
+        src: "{{ rke2_server_data_dir }}/node-token"
+      delegate_to: "{{ rke2_first_server }}"
       register: remote_token
-      when:
-        - rke2_node_type == "server"
+      no_log: true
       tags:
-        - configure
+        - always
 
-    - name: Print returned information
-      ansible.builtin.debug:
-        msg: "{{ remote_token['content'] | b64decode | trim }}"
-      when:
-        - debug_output
-        - rke2_node_type == "server"
-      tags:
-        - configure
-
-    # This is special. We need to propagate the Cluster token from the first node to all the other nodes.
-    # This play uses the register `remote_token` to store the token into the `cluster_token` host variable.
-    # It propagates the token with "delegate" to all the nodes in the current playbook.
-    # This must be executed only once and only if the cluster token is not set by hand!
-    - name: Store token in variable to access it on other nodes
+    - name: Store the cluster token
       ansible.builtin.set_fact:
         cluster_token: "{{ remote_token['content'] | b64decode | trim }}"
-      delegate_to: "{{ item }}"
-      with_items: "{{ play_hosts }}"
-      run_once: true
-      when:
-        - rke2_node_type == "server"
+      no_log: true
       tags:
-        - configure
-
-    - name: Print returned information
-      ansible.builtin.debug:
-        msg: "{{ cluster_token }}"
-      when:
-        - debug_output
-      tags:
-        - configure
+        - always
 
   rescue:
     - name: Warn about cluster token retrieval failure
       ansible.builtin.debug:
-        msg: "WARNING: Could not retrieve cluster token from server node. Ensure cluster_token is set manually or the first server node is accessible."
+        msg: "WARNING: Could not retrieve cluster token from {{ rke2_first_server }}."
       tags:
-        - configure
+        - always
 
-- name: Cluster token defined?
-  ansible.builtin.debug:
-    msg: "{{ cluster_token | default('<undefined>') }}"
-  when:
-    - debug_output
+# Follows the link to the server token on a cluster that has no agent token yet, so an
+# agent always gets a token the servers accept and moves over once they have restarted.
+- name: Fetch the agent join token from the first server
+  become: true
+  ansible.builtin.slurp:
+    src: "{{ rke2_server_data_dir }}/agent-token"
+  delegate_to: "{{ rke2_first_server }}"
+  register: remote_agent_token
+  failed_when: false
+  no_log: true
+  when: rke2_node_type == "agent"
   tags:
-    - configure
+    - always
+
+- name: Store the agent join token
+  ansible.builtin.set_fact:
+    rke2_agent_join_token: "{{ remote_agent_token.content | default('') | b64decode | trim }}"
+  no_log: true
+  when: rke2_node_type == "agent"
+  tags:
+    - always
+
+# A config without a token would restart the node into a state where it cannot join.
+- name: Stop before writing a config without a token
+  ansible.builtin.assert:
+    that: cluster_token | default('', true) | length > 0
+    fail_msg: "No cluster token found. Set cluster_token or make sure {{ rke2_first_server }} is a running server of this cluster."
+    quiet: true
+  tags:
+    - always

@@ -1,0 +1,34 @@
+---
+# Two clusters in one inventory. The agent and the foreign server come first on purpose.
+all:
+  vars:
+    ansible_connection: local
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    ansible_become: false
+  children:
+    b_cluster:
+      vars:
+        cluster_name: b
+      hosts:
+        b-server0:
+          rke2_node_type: server
+    a_cluster:
+      vars:
+        cluster_name: a
+      children:
+        a_agents:
+          hosts:
+            a-agent0:
+              rke2_node_type: agent
+        a_servers:
+          hosts:
+            a-server0:
+              rke2_node_type: server
+            a-server1:
+              rke2_node_type: server
+    no_servers:
+      vars:
+        cluster_name: c
+      hosts:
+        c-agent0:
+          rke2_node_type: agent

@@ -1,0 +1,36 @@
+---
+# https://docs.rke2.io/security/hardening_guide, RKE2 refuses to start without these.
+- name: Install the kernel parameters of the CIS profile
+  become: true
+  ansible.builtin.copy:
+    src: "{{ '/usr/local/share' if ansible_os_family == 'Debian' else '/usr/share' }}/rke2/rke2-cis-sysctl.conf"
+    dest: /etc/sysctl.d/60-rke2-cis.conf
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0644'
+  register: rke2_cis_sysctl
+  tags:
+    - install
+
+# Not a handler, the parameters have to be active before RKE2 starts.
+- name: Apply the kernel parameters  # noqa: no-handler
+  become: true
+  ansible.builtin.service:
+    name: systemd-sysctl
+    state: restarted
+  when: rke2_cis_sysctl.changed
+  tags:
+    - install
+
+- name: Create the etcd user
+  become: true
+  ansible.builtin.user:
+    name: etcd
+    comment: etcd user
+    shell: /sbin/nologin
+    system: true
+    create_home: false
+  when: rke2_node_type == "server"
+  tags:
+    - install

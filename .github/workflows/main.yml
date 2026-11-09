@@ -10,6 +10,9 @@ on:
   # Can be triggered manualy 
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   # This is stolen from https://github.com/geerlingguy/ansible-role-docker/blob/master/.github/workflows/release.yml
   release:
@@ -17,12 +20,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the codebase.
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set up Python 3.
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v7
         with:
-          python-version: '3.9'
+          python-version: '3.13'
 
       - name: Install Ansible.
         run: pip3 install ansible

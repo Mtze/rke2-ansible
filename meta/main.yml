@@ -10,13 +10,12 @@ galaxy_info:
 
   license: MIT
 
-  min_ansible_version: "2.15"
+  min_ansible_version: "2.17"
 
   platforms:
     - name: Ubuntu
       versions:
-        - focal
-        - jammy
+        - resolute
     - name: Debian
       versions:
         - bullseye

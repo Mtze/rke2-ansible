@@ -1,0 +1,24 @@
+---
+- name: Get RKE2 install script
+  become: true
+  ansible.builtin.get_url:
+    url: "{{ rke2_download_url }}"
+    dest: "{{ rke2_download_path }}/install.sh"
+    mode: '0755'
+    force: true
+    validate_certs: true
+  retries: 3
+  delay: 5
+  tags:
+    - install
+    - download
+
+- name: Execute install script
+  become: true
+  ansible.builtin.command: "sh {{ rke2_download_path }}/install.sh"
+  environment:
+    INSTALL_RKE2_TYPE: "{{ rke2_node_type }}"
+    INSTALL_RKE2_VERSION: "{{ rke2_version }}"
+  changed_when: true
+  tags:
+    - install

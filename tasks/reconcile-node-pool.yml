@@ -1,0 +1,45 @@
+---
+# RKE2 applies node-label and node-taint only when a node registers, so a changed pool
+# has to reach joined nodes through the API. Only a server can do this: NodeRestriction
+# forbids a kubelet to change its own taints.
+- name: Reconcile labels and taints of a joined node
+  become: true
+  delegate_to: "{{ rke2_first_server }}"
+  vars:
+    rke2_kubectl_node: "{{ ansible_nodename | lower }}"
+  tags:
+    - install
+    - configure
+  block:
+    # A node that has not registered yet gets its labels and taints from RKE2 itself.
+    - name: Read the node from the API server
+      ansible.builtin.command:
+        argv: "{{ rke2_kubectl + ['get', 'node', rke2_kubectl_node, '-o', 'json'] }}"
+      register: rke2_node_state
+      until: rke2_node_state.rc == 0 or 'NotFound' in rke2_node_state.stderr
+      retries: 6
+      delay: 10
+      changed_when: false
+      failed_when: rke2_node_state.rc != 0 and 'NotFound' not in rke2_node_state.stderr
+      check_mode: false
+
+    - name: Work out what differs
+      ansible.builtin.set_fact:
+        rke2_node_pool_diff: "{{ rke2_node_state.stdout | from_json | node_pool_args(rke2_node_labels, rke2_node_taints, rke2_node_managed_prefix) }}"
+      when: rke2_node_state.rc == 0
+
+    - name: Apply labels
+      ansible.builtin.command:
+        argv: "{{ rke2_kubectl + ['label', 'node', rke2_kubectl_node, '--overwrite'] + rke2_node_pool_diff.labels }}"
+      changed_when: true
+      when:
+        - rke2_node_state.rc == 0
+        - rke2_node_pool_diff.labels | length > 0
+
+    - name: Apply taints
+      ansible.builtin.command:
+        argv: "{{ rke2_kubectl + ['taint', 'node', rke2_kubectl_node, '--overwrite'] + rke2_node_pool_diff.taints }}"
+      changed_when: true
+      when:
+        - rke2_node_state.rc == 0
+        - rke2_node_pool_diff.taints | length > 0

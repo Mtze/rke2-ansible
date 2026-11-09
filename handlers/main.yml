@@ -1,11 +1,36 @@
 ---
 - name: Restart RKE2 service
   become: true
-  ansible.builtin.service:
-    name: "rke2-{{ rke2_node_type }}"
-    state: restarted
+  ansible.builtin.script:
+    cmd: "restart-and-wait.sh {{ rke2_node_type }} {{ ansible_nodename | lower }} {{ rke2_restart_timeout }}"
+  changed_when: true
   when:
     - rke2_node_type is defined
   throttle: 1
+  # A node that stays unhealthy must stop the rollout, or the next one goes down as well.
+  any_errors_fatal: true
   tags:
     - configure
+
+- name: Load kernel modules
+  become: true
+  ansible.builtin.service:
+    name: systemd-modules-load
+    state: restarted
+  tags:
+    - longhorn
+
+- name: Update GRUB
+  become: true
+  ansible.builtin.command: update-grub
+  changed_when: true
+  tags:
+    - longhorn
+
+- name: Restart multipathd
+  become: true
+  ansible.builtin.service:
+    name: multipathd
+    state: restarted
+  tags:
+    - longhorn

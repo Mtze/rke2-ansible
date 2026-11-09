@@ -2,3 +2,16 @@
 # vars file for rke2-ansible
 # Variables here have high precedence and cannot be easily overridden
 # Use defaults/main.yml for user-configurable variables
+
+longhorn_v2_kernel_modules:
+  - vfio_pci
+  - uio_pci_generic
+  - nvme-tcp
+
+rke2_installed_version: "{{ rke2_version_output.stdout | default('') | regex_search('v[0-9][^ ]*') | default('', true) }}"
+
+# Playbooks keep first_node_install set, so only a node without etcd data really bootstraps.
+# Without any URL to join, a single server stays in bootstrap mode instead of rendering an empty server:.
+rke2_bootstrap: >-
+  {{ first_node_install and not (rke2_etcd_db.stat.exists and
+  (control_plane_vip or control_plane_vip_hostname or control_plane_server is not match('https://:'))) }}

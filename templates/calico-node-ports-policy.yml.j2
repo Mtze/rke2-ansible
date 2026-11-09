@@ -1,0 +1,27 @@
+{# A tier of its own: Pass hands over to the NetworkPolicies, which would be skipped inside their own tier. #}
+apiVersion: crd.projectcalico.org/v1
+kind: Tier
+metadata:
+  name: rke2-node-protection
+spec:
+  order: 100
+---
+apiVersion: crd.projectcalico.org/v1
+kind: GlobalNetworkPolicy
+metadata:
+  name: rke2-node-protection.node-ports
+spec:
+  tier: rke2-node-protection
+  order: 100
+  types:
+    - Egress
+  namespaceSelector: "projectcalico.org/name not in { {% for ns in rke2_system_namespaces %}'{{ ns }}'{{ ', ' if not loop.last }}{% endfor %} }"
+  egress:
+{% for network in rke2_protected_node_networks %}
+    - action: Deny
+      protocol: TCP
+      destination:
+        nets: ["{{ network }}"]
+        ports: {{ rke2_protected_node_ports | to_json }}
+{% endfor %}
+    - action: Pass

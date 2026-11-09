@@ -13,19 +13,15 @@
 
 - name: Deploy RBAC manifest (Necessary for kube-vip to be able to run as daemonset)
   become: true
-  ansible.builtin.get_url:
-    url: "{{ kube_vip_rbac_manifest_url }}"
+  ansible.builtin.copy:
+    src: kube-vip-rbac.yaml
     dest: /var/lib/rancher/rke2/server/manifests/kube-vip-rbac.yaml
     mode: '0644'
     owner: root
     group: root
-    validate_certs: true
-  retries: 3
-  delay: 5
   tags:
     - install
     - kube-vip
-    - download
 
 - name: Deploy kube-vip manifest
   become: true

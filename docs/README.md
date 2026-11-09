@@ -1,21 +1,5 @@
-# RKE2
+# Documentation
 
-
-# Kube-vip 
-
-
-## Generate Manifests
-
-The process is described [here](https://kube-vip.io/install_static/#generating-a-manifest). 
-
-To generate a HA control plane (in ARP mode) use the following command: 
-```
-docker run ghcr.io/kube-vip/kube-vip manifest daemonset \
-        --arp 
-        --interface <NIC on Host - e.g. ens18> 
-        --address <VIP IP - e.g. 10.3.2.1>
-        --controlplane 
-        --taint
-        --leaderElection 
-        --inCluster
-```
+The role documentation lives in the [README](../README.md).
+The notes on the kube-vip manifest moved to [Refreshing the kube-vip manifest](../README.md#refreshing-the-kube-vip-manifest).
+Plans for larger changes are in [plans/](plans/).

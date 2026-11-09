@@ -1,10 +1,11 @@
 ---
 
 - name: Check current calicoctl version
-  ansible.builtin.command: /usr/local/bin/calicoctl version --output=json
+  ansible.builtin.command: /usr/local/bin/calicoctl version --client
   register: calicoctl_current_version
   failed_when: false
   changed_when: false
+  check_mode: false
   tags:
     - install
     - calico
@@ -17,8 +18,9 @@
     mode: '0755'
     owner: root
     group: root
+    force: true
     validate_certs: true
-    checksum: "{{ calicoctl_checksum | default(omit, true) }}"
+    checksum: "{{ calicoctl_checksum | default('sha256:https://github.com/projectcalico/calico/releases/download/' ~ calicoctl_version ~ '/SHA256SUMS', true) }}"
   when: >
     calicoctl_current_version.rc != 0 or
     calicoctl_version not in calicoctl_current_version.stdout
@@ -28,3 +30,36 @@
     - install
     - calico
     - download
+
+- name: Ensure the calicoctl config directory exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/calico
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  when: rke2_node_type == "server"
+  tags:
+    - install
+    - calico
+
+# Without this calicoctl looks for etcd and root would have to export DATASTORE_TYPE and KUBECONFIG.
+- name: Point calicoctl at the Kubernetes datastore
+  become: true
+  ansible.builtin.copy:
+    content: |
+      apiVersion: projectcalico.org/v3
+      kind: CalicoAPIConfig
+      metadata:
+      spec:
+        datastoreType: kubernetes
+        kubeconfig: /etc/rancher/rke2/rke2.yaml
+    dest: /etc/calico/calicoctl.cfg
+    owner: root
+    group: root
+    mode: '0600'
+  when: rke2_node_type == "server"
+  tags:
+    - install
+    - calico

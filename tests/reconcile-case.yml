@@ -1,0 +1,26 @@
+---
+- name: "Clear the kubectl call log: {{ case.name }}"
+  ansible.builtin.file:
+    path: "{{ fake_call_log }}"
+    state: absent
+
+- name: "Run the reconcile tasks: {{ case.name }}"
+  environment:
+    FAKE_NODE: "{{ case.node | to_json if case.node is defined else '' }}"
+    FAKE_CALL_LOG: "{{ fake_call_log }}"
+  block:
+    - name: Include the role
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: reconcile-node-pool.yml
+      vars:
+        rke2_first_server: localhost
+        rke2_kubectl: ["{{ playbook_dir }}/bin/kubectl"]
+        rke2_node_labels: "{{ case.labels | default({}) }}"
+        rke2_node_taints: "{{ case.taints | default([]) }}"
+        rke2_node_managed_prefix: "{{ case.prefix | default('') }}"
+
+- name: "Check the kubectl calls: {{ case.name }}"
+  ansible.builtin.assert:
+    that: (lookup('file', fake_call_log, errors='ignore') | default('', true)).splitlines() == case.expected
+    fail_msg: "Got: {{ lookup('file', fake_call_log, errors='ignore') }}"

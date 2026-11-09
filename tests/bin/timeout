@@ -1,0 +1,4 @@
+#!/bin/sh
+# macOS has no timeout, and the tests do not need one.
+shift
+exec "$@"

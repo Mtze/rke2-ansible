@@ -1,0 +1,656 @@
+---
+# Run with: ansible-playbook -i tests/inventory.yml tests/main.yml --skip-tags needs_real_host
+- name: Render the RKE2 config
+  hosts: a-server0
+  gather_facts: false
+  vars:
+    ansible_hostname: node
+    cluster_token: t
+    control_plane_vip: 10.0.0.1
+    control_plane_vip_hostname: cp.example.com
+    cni_plugin: calico
+    disabled_components: [rke2-ingress-nginx]
+    additional_hostnames: []
+    cluster_cidr: a
+    service_cidr: b
+    node_cidr_mask_ipv4: 24
+    node_cidr_mask_ipv6: 112
+    node_ips: ""
+    cluster_domain: ""
+    tpl: "{{ playbook_dir }}/../templates/rke2_config.yml.j2"
+    rke2_ingress_controller: []
+    rke2_agent_token: ""
+    rke2_audit_log: false
+    rke2_cis_profile: ""
+    rke2_kubelet_seccomp_default: false
+    rke2_kube_apiserver_args: []
+    rke2_etcd_snapshot_schedule: ""
+    rke2_etcd_snapshot_retention: ""
+    rke2_etcd_s3: {}
+    no_pool: {rke2_bootstrap: false, rke2_node_labels: {}, rke2_node_taints: [], rke2_kubelet_args: []}
+    with_pool:
+      rke2_bootstrap: false
+      rke2_node_labels: {example.com/pool: storage}
+      rke2_node_taints: ["example.com/pool=storage:NoSchedule"]
+      rke2_kubelet_args: ["max-pods=110"]
+    bootstrap: {rke2_bootstrap: true, rke2_node_labels: {}, rke2_node_taints: [], rke2_kubelet_args: []}
+    server_options: &server_options
+      rke2_bootstrap: false
+      rke2_node_labels: {}
+      rke2_node_taints: []
+      rke2_kubelet_args: []
+      rke2_ingress_controller: [none]
+      rke2_agent_token: agent-secret
+      rke2_agent_join_token: K10hash::node:agent-secret
+      rke2_audit_log: true
+      rke2_cis_profile: cis
+      rke2_kubelet_seccomp_default: true
+      rke2_kube_apiserver_args: ["audit-log-maxage=30"]
+      rke2_etcd_snapshot_schedule: "0 */5 * * *"
+      rke2_etcd_snapshot_retention: 7
+      rke2_etcd_s3: {endpoint: s3.example.com, bucket: etcd, access-key: secret}
+    agent_options:
+      <<: *server_options
+      rke2_node_type: agent
+  tasks:
+    - name: Render the three shapes
+      ansible.builtin.set_fact:
+        plain: "{{ lookup('template', tpl, template_vars=no_pool) | from_yaml }}"
+        pool: "{{ lookup('template', tpl, template_vars=with_pool) | from_yaml }}"
+        first: "{{ lookup('template', tpl, template_vars=bootstrap) | from_yaml }}"
+        server: "{{ lookup('template', tpl, template_vars=server_options) | from_yaml }}"
+        agent: "{{ lookup('template', tpl, template_vars=agent_options) | from_yaml }}"
+        dual: "{{ lookup('template', tpl, template_vars=no_pool | combine({'cluster_cidr': '10.42.0.0/16,fd00::/96'})) | from_yaml }}"
+
+    - name: Check the renderings
+      ansible.builtin.assert:
+        that:
+          - "'node-label' not in plain and 'node-taint' not in plain and 'kubelet-arg' not in plain"
+          - plain['server'] == 'https://cp.example.com:9345'
+          - pool['node-label'] == ['example.com/pool=storage']
+          - pool['node-taint'] == ['example.com/pool=storage:NoSchedule']
+          - pool['kubelet-arg'] == ['max-pods=110']
+          - "'server' not in first"
+          - plain['kube-controller-manager-arg'] == ['node-cidr-mask-size=24']
+          - dual['kube-controller-manager-arg'] == ['node-cidr-mask-size-ipv4=24', 'node-cidr-mask-size-ipv6=112']
+          - "'ingress-controller' not in plain and 'etcd-s3' not in plain"
+          - server['ingress-controller'] == ['none']
+          - server['kube-apiserver-arg'] == ['audit-log-maxage=30']
+          - server['etcd-snapshot-schedule-cron'] == '0 */5 * * *'
+          - server['etcd-snapshot-retention'] == 7
+          - server['etcd-s3'] == true
+          - server['etcd-s3-bucket'] == 'etcd'
+          - server['etcd-s3-access-key'] == 'secret'
+          - agent | dict2items | selectattr('key', 'search', 'etcd|ingress|apiserver|agent-token|audit') | list | length == 0
+          - server['token'] == 't'
+          - server['agent-token'] == 'agent-secret'
+          - agent['token'] == 'K10hash::node:agent-secret'
+          - server['audit-policy-file'] == '/etc/rancher/rke2/audit-policy.yaml'
+          - server['profile'] == 'cis' and agent['profile'] == 'cis'
+          - server['kubelet-arg'] == ['seccomp-default=true']
+          - "'agent-token' not in plain and 'audit-policy-file' not in plain and 'profile' not in plain and 'kubelet-arg' not in plain"
+
+    - name: Render the cluster policies
+      vars:
+        rke2_system_namespaces: [kube-system, monitoring]
+        rke2_protected_node_networks: [10.0.0.0/24, "2001:db8::/64"]
+        rke2_protected_node_ports: [10250]
+      ansible.builtin.set_fact:
+        vap_deny: "{{ lookup('template', playbook_dir ~ '/../templates/control-plane-policy.yml.j2', template_vars={'rke2_control_plane_policy': 'Deny'}) | from_yaml_all | list }}"
+        vap_warn: "{{ lookup('template', playbook_dir ~ '/../templates/control-plane-policy.yml.j2', template_vars={'rke2_control_plane_policy': 'Warn'}) | from_yaml_all | list }}"
+        node_ports: "{{ lookup('template', playbook_dir ~ '/../templates/calico-node-ports-policy.yml.j2') | from_yaml_all | list }}"
+
+    - name: Check the cluster policies
+      ansible.builtin.assert:
+        that:
+          - vap_deny[1].spec.validationActions == ['Deny']
+          - vap_warn[1].spec.validationActions == ['Warn', 'Audit']
+          - vap_deny[1].spec.matchResources.namespaceSelector.matchExpressions[0]['values'] == ['kube-system', 'monitoring']
+          - node_ports[1].spec.namespaceSelector == "projectcalico.org/name not in { 'kube-system', 'monitoring' }"
+          - node_ports[1].spec.egress | map(attribute='action') | list == ['Deny', 'Deny', 'Pass']
+          - node_ports[1].spec.egress[0].destination.nets == ['10.0.0.0/24']
+          - node_ports[1].spec.egress[1].destination.ports == [10250]
+
+- name: Derive defaults from facts
+  hosts: a-agent0
+  gather_facts: false
+  vars:
+    ansible_default_ipv4: {address: 10.0.0.5}
+    ansible_default_ipv6: {address: "2001:db8::5"}
+  tasks:
+    - name: Pull in the role variables without running anything
+      ansible.builtin.import_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: reconcile-node-pool.yml
+      when: false
+
+    - name: Check node_ips on single-stack and dual-stack clusters
+      vars:
+        cluster_cidr: "{{ item.cidr }}"
+      ansible.builtin.assert:
+        that: node_ips == item.ips
+        fail_msg: "Got {{ node_ips }}"
+      loop:
+        - {cidr: "10.42.0.0/16", ips: "10.0.0.5"}
+        - {cidr: "10.42.0.0/16,fd00::/96", ips: "10.0.0.5,2001:db8::5"}
+
+    - name: Check that no ingress controller is the default
+      ansible.builtin.assert:
+        that: rke2_ingress_controller == ['none']
+
+    - name: Check that the installed version is parsed
+      vars:
+        rke2_version_output: "{{ item.output }}"
+      ansible.builtin.assert:
+        that: rke2_installed_version == item.version
+        fail_msg: "Got {{ rke2_installed_version }}"
+      loop:
+        - {output: {stdout: "rke2 version v1.35.9+rke2r1 (abc)\ngo version go1.25"}, version: "v1.35.9+rke2r1"}
+        - {output: {rc: 2}, version: ""}
+
+- name: Decide about bootstrap
+  hosts: a-server0
+  gather_facts: false
+  tasks:
+    - name: Pull in the role variables without running anything
+      ansible.builtin.import_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: reconcile-node-pool.yml
+      when: false
+
+    - name: Check the decision for each node state
+      vars:
+        first_node_install: "{{ item.first }}"
+        rke2_etcd_db: {stat: {exists: "{{ item.etcd }}"}}
+        control_plane_vip_hostname: "{{ item.host | default('') }}"
+      ansible.builtin.assert:
+        that: rke2_bootstrap | bool == item.bootstrap
+        fail_msg: "{{ item }} gave {{ rke2_bootstrap }}"
+      loop:
+        - {first: true, etcd: false, host: cp.example.com, bootstrap: true}
+        - {first: true, etcd: true, host: cp.example.com, bootstrap: false}
+        - {first: false, etcd: false, host: cp.example.com, bootstrap: false}
+        # A single server without any URL to join must not render an empty server: line.
+        - {first: true, etcd: true, bootstrap: true}
+
+- name: Find the first server of the cluster with an agent-only play
+  hosts: a-agent0
+  gather_facts: false
+  tasks:
+    - name: Pull in the role variables without running anything
+      ansible.builtin.import_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: reconcile-node-pool.yml
+      when: false
+
+    - name: Check that neither the agent nor the other cluster is picked
+      ansible.builtin.assert:
+        that: rke2_first_server == 'a-server0'
+        fail_msg: "Got {{ rke2_first_server }}"
+
+- name: Stop when no server holds a token
+  hosts: c-agent0
+  gather_facts: false
+  tasks:
+    - name: Expect the token discovery to fail
+      block:
+        - name: Run the token discovery
+          ansible.builtin.include_role:
+            name: "{{ playbook_dir }}/.."
+            tasks_from: find-cluster-token.yml
+
+        - name: Fail when the discovery carried on
+          ansible.builtin.fail:
+            msg: A node without a token must not continue
+      rescue:
+        - name: Check that the guard stopped the play
+          ansible.builtin.assert:
+            that: "'No cluster token found' in ansible_failed_result.msg"
+
+- name: Keep one agent token secret per cluster
+  hosts: a-server0
+  gather_facts: false
+  vars:
+    rke2_first_server: localhost
+  tasks:
+    - name: Create the working directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: .agent-token
+      register: agent_token_tmp
+
+    - name: Run the agent token tasks on a running cluster
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: agent-token.yml
+      vars:
+        rke2_etcd_db: {stat: {exists: true}}
+        rke2_agent_token_file: "{{ agent_token_tmp.path }}/sub/key"
+
+    - name: Check that a running cluster does not get an agent token by itself
+      ansible.builtin.assert:
+        that:
+          - (agent_token_tmp.path ~ '/sub/key') is not exists
+          - rke2_agent_token | length == 0
+
+    - name: Forget the fact of the run before
+      ansible.builtin.set_fact:
+        rke2_agent_token: ""
+
+    - name: Run the agent token tasks at bootstrap
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: agent-token.yml
+      vars:
+        first_node_install: true
+        rke2_etcd_db: {stat: {exists: false}}
+        rke2_agent_token_file: "{{ agent_token_tmp.path }}/sub/key"
+
+    - name: Remember the secret
+      ansible.builtin.set_fact:
+        first_secret: "{{ lookup('file', agent_token_tmp.path ~ '/sub/key') }}"
+
+    - name: Check the secret and that it is stored for the template
+      ansible.builtin.assert:
+        that:
+          - first_secret | length == 64
+          - rke2_agent_token == first_secret
+
+    - name: Run the agent token tasks with a secret given by hand
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: agent-token.yml
+      vars:
+        rke2_agent_token: from-vault
+        rke2_agent_token_file: "{{ agent_token_tmp.path }}/other/key"
+
+    - name: Check that a given secret creates no file
+      ansible.builtin.assert:
+        that: (agent_token_tmp.path ~ '/other/key') is not exists
+
+    - name: Forget the fact, as the next play run would
+      ansible.builtin.set_fact:
+        rke2_agent_token: ""
+
+    - name: Run the agent token tasks again
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: agent-token.yml
+      vars:
+        rke2_etcd_db: {stat: {exists: true}}
+        rke2_agent_token_file: "{{ agent_token_tmp.path }}/sub/key"
+
+    - name: Check that the secret stays the same
+      ansible.builtin.assert:
+        that: lookup('file', agent_token_tmp.path ~ '/sub/key') == first_secret
+
+    - name: Leave no fact behind for the later plays
+      ansible.builtin.set_fact:
+        rke2_agent_token: ""
+
+- name: Prepare token files
+  hosts: a-server1
+  gather_facts: false
+  tasks:
+    - name: Create the working directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: .tokens
+      register: token_tmp
+
+    - name: Write the token files
+      ansible.builtin.copy:
+        content: "{{ item.value }}\n"
+        dest: "{{ token_tmp.path }}/{{ item.key }}"
+        mode: '0600'
+      loop: "{{ {'node-token': 'K10hash::server:pw', 'agent-token': 'K10hash::node:secret'} | dict2items }}"
+
+- name: A first play leaves a token on one host only
+  hosts: a-server1
+  gather_facts: false
+  vars: &token_vars
+    rke2_first_server: a-server1
+    rke2_server_data_dir: "{{ hostvars['a-server1'].token_tmp.path }}"
+    rke2_agent_token_file: "{{ hostvars['a-server1'].token_tmp.path }}/agent-token.key"
+  tasks:
+    - name: Find the tokens
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: find-cluster-token.yml
+
+    - name: Create the agent token secret
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: agent-token.yml
+      vars:
+        first_node_install: true
+        rke2_etcd_db: {stat: {exists: false}}
+
+- name: The next play starts with that host and still serves the others
+  hosts: a_cluster
+  order: reverse_inventory
+  gather_facts: false
+  vars: *token_vars
+  tasks:
+    - name: Find the tokens
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: find-cluster-token.yml
+
+    - name: Read the agent token secret
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: agent-token.yml
+      vars:
+        rke2_etcd_db: {stat: {exists: true}}
+
+    - name: Check that every host got its tokens
+      ansible.builtin.assert:
+        that:
+          - cluster_token == 'K10hash::server:pw'
+          - rke2_agent_token == hostvars['a-server1'].rke2_agent_token
+          - rke2_agent_token | length == 64
+          - (rke2_agent_join_token | default('')) == ('K10hash::node:secret' if rke2_node_type == 'agent' else '')
+
+- name: Prepare a node for the Longhorn V2 Data Engine
+  hosts: a-server0
+  gather_facts: false
+  vars:
+    ansible_nodename: node-1
+    ansible_architecture: aarch64
+    fake_call_log: "{{ longhorn_tmp.path | default('') }}/calls"
+    modules: [modprobe vfio_pci, modprobe uio_pci_generic, modprobe nvme-tcp]
+  environment:
+    PATH: "{{ playbook_dir }}/bin:{{ lookup('env', 'PATH') }}"
+    FAKE_CALL_LOG: "{{ fake_call_log }}"
+    FAKE_HUGEPAGES: "{{ longhorn_tmp.path | default('') }}/hugepages"
+  tasks:
+    - name: Create the working directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: .longhorn
+      register: longhorn_tmp
+
+    - name: Run every case
+      ansible.builtin.include_tasks: longhorn-case.yml
+      loop_control:
+        loop_var: case
+        label: "{{ case.name }}"
+      loop:
+        - name: a fresh node gets modules and huge pages, then RKE2 restarts
+          kernel: 7.0.0-15-generic
+          pages: 0
+          expected: "{{ modules + ['sysctl -w vm.nr_hugepages=1024', 'systemctl restart rke2-server'] }}"
+        - name: a prepared node stays untouched
+          kernel: 7.0.0-15-generic
+          pages: 1024
+          expected: "{{ modules }}"
+        - name: an old kernel is refused
+          kernel: 6.5.0-40-generic
+          pages: 0
+          fails_with: needs kernel 6.7
+          expected: []
+        - name: too few huge pages stop the run
+          kernel: 7.0.0-15-generic
+          pages: 0
+          limit: 10
+          fails_with: non-zero
+          expected: "{{ modules + ['sysctl -w vm.nr_hugepages=1024'] }}"
+
+- name: Reconcile labels and taints
+  hosts: a-server0
+  gather_facts: false
+  vars:
+    ansible_nodename: Node-1.Example.Com
+    fake_call_log: "{{ fake_call_tempfile.path }}"
+    in_sync:
+      metadata: {labels: {example.com/pool: storage, kubernetes.io/os: linux}}
+      spec: {taints: [{key: example.com/pool, value: storage, effect: NoSchedule}]}
+    drifted:
+      metadata: {labels: {example.com/pool: pve, example.com/old: "x", kubernetes.io/os: linux}}
+      spec:
+        taints:
+          - {key: example.com/pool, value: pve, effect: NoSchedule}
+          - {key: example.com/old, effect: NoExecute}
+          - {key: node.kubernetes.io/unschedulable, effect: NoSchedule}
+  tasks:
+    - name: Create the kubectl call log
+      ansible.builtin.tempfile:
+        suffix: .kubectl-calls
+      register: fake_call_tempfile
+
+    - name: Run every case
+      ansible.builtin.include_tasks: reconcile-case.yml
+      loop_control:
+        loop_var: case
+        label: "{{ case.name }}"
+      loop:
+        - name: in sync does nothing
+          node: "{{ in_sync }}"
+          labels: {example.com/pool: storage}
+          taints: ["example.com/pool=storage:NoSchedule"]
+          prefix: example.com/
+          expected: []
+        - name: without prefix nothing is removed
+          node: "{{ drifted }}"
+          labels: {example.com/pool: storage}
+          taints: ["example.com/pool=storage:NoSchedule"]
+          expected:
+            - label node node-1.example.com --overwrite example.com/pool=storage
+            - taint node node-1.example.com --overwrite example.com/pool=storage:NoSchedule
+        - name: with prefix stale keys go away and foreign keys stay
+          node: "{{ drifted }}"
+          labels: {example.com/pool: storage}
+          taints: ["example.com/pool=storage:NoSchedule"]
+          prefix: example.com/
+          expected:
+            - label node node-1.example.com --overwrite example.com/pool=storage example.com/old-
+            - taint node node-1.example.com --overwrite example.com/pool=storage:NoSchedule example.com/old:NoExecute-
+        - name: a node leaving its pool loses the taint
+          node: "{{ in_sync }}"
+          labels: {example.com/pool: pve}
+          prefix: example.com/
+          expected:
+            - label node node-1.example.com --overwrite example.com/pool=pve
+            - taint node node-1.example.com --overwrite example.com/pool:NoSchedule-
+        - name: a node that has not registered is skipped
+          labels: {example.com/pool: storage}
+          taints: ["example.com/pool=storage:NoSchedule"]
+          prefix: example.com/
+          expected: []
+
+- name: Decide whether a node may be upgraded
+  hosts: a-server0
+  gather_facts: false
+  tasks:
+    - name: Pull in the role plugins without running anything
+      ansible.builtin.import_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: reconcile-node-pool.yml
+      when: false
+
+    - name: Check every rule
+      vars:
+        problems: "{{ item.old | upgrade_problems(item.new, item.type | default('server'), item.cgroup2 | default(true), item.kernel | default('6.8.0-40-generic'), '5.15', item.servers | default([])) }}"
+      ansible.builtin.assert:
+        that: (item.problem is not defined and problems | length == 0) or (item.problem is defined and problems | length == 1 and item.problem in problems[0])
+        fail_msg: "{{ item.old }} to {{ item.new }} gave {{ problems }}"
+      loop:
+        - {old: v1.34.1+rke2r1, new: v1.35.10+rke2r1}
+        - {old: v1.35.9+rke2r1, new: v1.35.9+rke2r2}
+        - {old: "", new: v1.35.10+rke2r1, problem: not installed}
+        - {old: v1.35.10+rke2r1, new: v1.35.9+rke2r1, problem: older}
+        - {old: v1.33.1+rke2r1, new: v1.35.10+rke2r1, problem: at most one minor}
+        - {old: v1.33.1+rke2r1, new: v1.35.10+rke2r1, type: agent}
+        - {old: v1.34.1+rke2r1, new: v1.35.10+rke2r1, cgroup2: false, problem: cgroup v2}
+        - {old: v1.33.1+rke2r1, new: v1.34.2+rke2r1, cgroup2: false}
+        - {old: v1.34.1+rke2r1, new: v1.34.2+rke2r1, kernel: 5.4.0-200-generic, problem: older than the required}
+        - old: v1.34.1+rke2r1
+          new: v1.34.2+rke2r1
+          type: agent
+          servers: [{metadata: {name: s0}, status: {nodeInfo: {kubeletVersion: v1.34.1+rke2r1}}}]
+          problem: servers first
+
+- name: Restart and wait
+  hosts: a-server0
+  gather_facts: false
+  vars:
+    script: "{{ playbook_dir }}/../files/restart-and-wait.sh"
+  environment:
+    PATH: "{{ playbook_dir }}/bin:{{ lookup('env', 'PATH') }}"
+  tasks:
+    - name: Create the call log
+      ansible.builtin.tempfile:
+        suffix: .calls
+      register: restart_log
+
+    - name: Restart a healthy node
+      ansible.builtin.command: "sh {{ script }} server node-1 30"
+      environment:
+        FAKE_CALL_LOG: "{{ restart_log.path }}"
+      changed_when: false
+
+    - name: Check the restart happened
+      ansible.builtin.assert:
+        that: lookup('file', restart_log.path) == 'systemctl restart rke2-server'
+
+    - name: Give up on a node that stays unhealthy
+      ansible.builtin.command: "sh {{ script }} agent node-1 0"
+      environment:
+        FAKE_CALL_LOG: "{{ restart_log.path }}"
+        FAKE_READY: "False"
+      register: unhealthy
+      changed_when: false
+      failed_when: unhealthy.rc != 1 or 'did not become healthy' not in unhealthy.stderr
+
+- name: Upgrade a node
+  hosts: a-server0
+  gather_facts: false
+  vars:
+    ansible_nodename: node-1
+    ansible_kernel: 6.8.0-40-generic
+    ansible_architecture: x86_64
+    fake_call_log: "{{ upgrade_tmp.path }}/calls"
+    target: v1.34.2+rke2r1
+    drain: drain node-1 --ignore-daemonsets --delete-emptydir-data --timeout=600s
+    upgraded: {spec: {}, status: {nodeInfo: {kubeletVersion: "{{ target }}"}}}
+    cordoned: {spec: {unschedulable: true}, status: {nodeInfo: {kubeletVersion: "{{ target }}"}}}
+  tasks:
+    - name: Create the working directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: .upgrade
+      register: upgrade_tmp
+
+    - name: Run every case
+      ansible.builtin.include_tasks: upgrade-case.yml
+      loop_control:
+        loop_var: case
+        label: "{{ case.name }}"
+      loop:
+        - name: the first server saves a snapshot and comes back
+          installed: v1.33.9+rke2r1
+          first_server: a-server0
+          node: "{{ upgraded }}"
+          snapshot_copied: true
+          expected:
+            - rke2 etcd-snapshot save --name pre-upgrade
+            - "{{ drain }}"
+            - "install server {{ target }}"
+            - systemctl restart rke2-server
+            - uncordon node-1
+        - name: S3 keeps the snapshot off the cluster
+          installed: v1.33.9+rke2r1
+          first_server: a-server0
+          node: "{{ upgraded }}"
+          s3: {bucket: etcd}
+          expected:
+            - rke2 etcd-snapshot save --name pre-upgrade
+            - "{{ drain }}"
+            - "install server {{ target }}"
+            - systemctl restart rke2-server
+            - uncordon node-1
+        - name: a node cordoned before stays cordoned
+          installed: v1.33.9+rke2r1
+          first_server: localhost
+          node: "{{ cordoned }}"
+          expected:
+            - "{{ drain }}"
+            - "install server {{ target }}"
+            - systemctl restart rke2-server
+        - name: an agent follows when the servers are done
+          installed: v1.33.9+rke2r1
+          type: agent
+          first_server: localhost
+          node: "{{ upgraded }}"
+          servers: {items: [{metadata: {name: s0}, status: {nodeInfo: {kubeletVersion: "{{ target }}"}}}]}
+          expected:
+            - "{{ drain }}"
+            - "install agent {{ target }}"
+            - systemctl restart rke2-agent
+            - uncordon node-1
+        - name: an agent waits for the servers
+          installed: v1.33.9+rke2r1
+          type: agent
+          first_server: localhost
+          node: "{{ upgraded }}"
+          servers: {items: [{metadata: {name: s0}, status: {nodeInfo: {kubeletVersion: v1.33.9+rke2r1}}}]}
+          fails_with: upgrade the servers first
+          expected: []
+        - name: a node at the target version is left alone
+          installed: "{{ target }}"
+          first_server: localhost
+          node: "{{ upgraded }}"
+          expected: []
+
+- name: Refuse a batch of more than one node
+  hosts: a_servers
+  gather_facts: false
+  vars:
+    rke2_version: v1.34.2+rke2r1
+  tasks:
+    - name: Expect the batch guard to fail
+      environment:
+        PATH: "{{ playbook_dir }}/bin:{{ lookup('env', 'PATH') }}"
+        FAKE_RKE2_VERSION: v1.33.9+rke2r1
+      block:
+        - name: Run the upgrade
+          ansible.builtin.include_role:
+            name: "{{ playbook_dir }}/.."
+            tasks_from: upgrade.yml
+          vars:
+            ansible_os_family: Debian
+            ansible_distribution: Ubuntu
+
+        - name: Fail when the upgrade carried on
+          ansible.builtin.fail:
+            msg: A batch of two nodes must not continue
+      rescue:
+        - name: Check that the guard stopped the play
+          ansible.builtin.assert:
+            that: "'serial: 1' in ansible_failed_result.msg"
+
+- name: A normal run never upgrades
+  hosts: a-server0
+  gather_facts: false
+  tasks:
+    - name: Expect the version guard to fail
+      environment:
+        PATH: "{{ playbook_dir }}/bin:{{ lookup('env', 'PATH') }}"
+        FAKE_RKE2_VERSION: v1.33.9+rke2r1
+      block:
+        - name: Run the role
+          ansible.builtin.include_role:
+            name: "{{ playbook_dir }}/.."
+          vars:
+            ansible_os_family: Debian
+            ansible_distribution: Ubuntu
+            rke2_version: v1.34.2+rke2r1
+
+        - name: Fail when the run carried on
+          ansible.builtin.fail:
+            msg: A run with another installed version must not continue
+      rescue:
+        - name: Check that the guard stopped the play
+          ansible.builtin.assert:
+            that: "'tasks_from: upgrade' in ansible_failed_result.msg"

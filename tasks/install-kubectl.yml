@@ -1,33 +1,16 @@
 ---
 
-- name: Check current kubectl version
-  ansible.builtin.command: /usr/local/bin/kubectl version --client --output=json
-  register: kubectl_current_version
-  failed_when: false
-  changed_when: false
-  tags:
-    - install
-    - kubectl
-
-- name: Download and install kubectl
+# RKE2 ships kubectl at exactly its own Kubernetes version, so a link never skews.
+- name: Link the kubectl shipped with RKE2
   become: true
-  ansible.builtin.get_url:
-    url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}/kubectl"
+  ansible.builtin.file:
+    src: /var/lib/rancher/rke2/bin/kubectl
     dest: /usr/local/bin/kubectl
-    mode: '0755'
-    owner: root
-    group: root
-    validate_certs: true
-    checksum: "{{ kubectl_checksum | default(omit, true) }}"
-  when: >
-    kubectl_current_version.rc != 0 or
-    kubectl_version not in kubectl_current_version.stdout
-  retries: 3
-  delay: 5
+    state: link
+    force: true
   tags:
     - install
     - kubectl
-    - download
 
 - name: Ensure .kube folder is present for root user
   become: true
@@ -37,6 +20,18 @@
     mode: '0755'
     owner: root
     group: root
+  tags:
+    - install
+    - kubectl
+
+# Agents get only the kubelet credentials, which see their own node. An admin config has no place on a worker.
+- name: Point root's kubectl at the local kubeconfig
+  become: true
+  ansible.builtin.file:
+    src: "{{ '/etc/rancher/rke2/rke2.yaml' if rke2_node_type == 'server' else '/var/lib/rancher/rke2/agent/kubelet.kubeconfig' }}"
+    dest: /root/.kube/config
+    state: link
+    force: true
   tags:
     - install
     - kubectl

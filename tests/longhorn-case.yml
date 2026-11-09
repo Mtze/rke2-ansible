@@ -1,0 +1,40 @@
+---
+- name: "Set up the node: {{ case.name }}"
+  ansible.builtin.copy:
+    content: "{{ case.pages }}\n"
+    dest: "{{ longhorn_tmp.path }}/hugepages"
+    mode: '0644'
+
+- name: "Clear the call log: {{ case.name }}"
+  ansible.builtin.file:
+    path: "{{ fake_call_log }}"
+    state: absent
+
+- name: "Run the preparation: {{ case.name }}"
+  environment:
+    FAKE_HUGEPAGES_LIMIT: "{{ case.limit | default('') }}"
+  block:
+    - name: Include the role
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: install-longhorn-v2.yml
+      vars:
+        ansible_kernel: "{{ case.kernel }}"
+
+    - name: Run the restart a change has asked for
+      ansible.builtin.meta: flush_handlers
+
+    - name: "Fail when a refused preparation carried on: {{ case.name }}"
+      ansible.builtin.fail:
+        msg: The preparation should have been refused
+      when: case.fails_with is defined
+  rescue:
+    - name: "Check the reason: {{ case.name }}"
+      ansible.builtin.assert:
+        that: case.fails_with is defined and (case.fails_with in (ansible_failed_result.msg | default('')) or ansible_failed_result.failed_when_result | default(false))
+        fail_msg: "{{ ansible_failed_result | to_json }}"
+
+- name: "Check the calls: {{ case.name }}"
+  ansible.builtin.assert:
+    that: (lookup('file', fake_call_log, errors='ignore') | default('', true)).splitlines() == case.expected
+    fail_msg: "Got: {{ lookup('file', fake_call_log, errors='ignore') }}"

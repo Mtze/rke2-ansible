@@ -1,0 +1,60 @@
+---
+- name: "Clear the call log: {{ case.name }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ fake_call_log }}"
+    - "{{ upgrade_tmp.path }}/local/pre-upgrade-node-1"
+
+- name: "Create the snapshot directory: {{ case.name }}"
+  ansible.builtin.file:
+    path: "{{ upgrade_tmp.path }}/snapshots"
+    state: directory
+    mode: '0700'
+
+- name: "Run the upgrade: {{ case.name }}"
+  environment:
+    PATH: "{{ playbook_dir }}/bin:{{ lookup('env', 'PATH') }}"
+    FAKE_CALL_LOG: "{{ fake_call_log }}"
+    FAKE_NODE: "{{ case.node | to_json }}"
+    FAKE_SERVERS: "{{ case.servers | default({'items': []}) | to_json }}"
+    FAKE_RKE2_VERSION: "{{ case.installed }}"
+    FAKE_SNAPSHOT_DIR: "{{ upgrade_tmp.path }}/snapshots"
+  block:
+    - name: Include the role
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/.."
+        tasks_from: upgrade.yml
+      vars:
+        ansible_os_family: Debian
+        ansible_distribution: Ubuntu
+        rke2_version: "{{ target }}"
+        rke2_node_type: "{{ case.type | default('server') }}"
+        rke2_first_server: "{{ case.first_server }}"
+        rke2_kubectl: ["{{ playbook_dir }}/bin/kubectl"]
+        rke2_download_url: "file://{{ playbook_dir }}/bin/install.sh"
+        rke2_download_path: "{{ upgrade_tmp.path }}"
+        rke2_etcd_snapshot_dir: "{{ upgrade_tmp.path }}/snapshots"
+        rke2_upgrade_snapshot_local_path: "{{ upgrade_tmp.path }}/local"
+        rke2_etcd_s3: "{{ case.s3 | default({}) }}"
+
+    - name: "Fail when a refused upgrade carried on: {{ case.name }}"
+      ansible.builtin.fail:
+        msg: The upgrade should have been refused
+      when: case.fails_with is defined
+  rescue:
+    - name: "Check the reason: {{ case.name }}"
+      ansible.builtin.assert:
+        that: case.fails_with is defined and case.fails_with in ansible_failed_result.msg
+        fail_msg: "{{ ansible_failed_result.msg }}"
+
+- name: "Check the calls and their order: {{ case.name }}"
+  ansible.builtin.assert:
+    that: (lookup('file', fake_call_log, errors='ignore') | default('', true)).splitlines() == case.expected
+    fail_msg: "Got: {{ lookup('file', fake_call_log, errors='ignore') }}"
+
+- name: "Check the snapshot copy: {{ case.name }}"
+  ansible.builtin.assert:
+    that: (upgrade_tmp.path ~ '/local/pre-upgrade-node-1') is file
+  when: case.snapshot_copied | default(false)

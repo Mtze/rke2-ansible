@@ -1,3 +1,6 @@
+exclude_paths:
+  - tests/  # the tests load the role by path and run in CI on their own
+
 skip_list:
   - '403'  # Package installs should not use latest
   - '208'  # File permissions unset or incorrect
