@@ -42,7 +42,7 @@ A split into `v2.1.0` and `v3.0.0` was planned first, and Matthias decided on 20
 | Node ports | Calico policy through `rke2_protected_node_networks` and `rke2_protected_node_ports` |
 | Audit log | `rke2_audit_log`, metadata level, on by default |
 | seccomp | `rke2_kubelet_seccomp_default`, on by default |
-| CIS profile | `rke2_cis_profile` prepares the host, for fresh installations only |
+| CIS profile | `rke2_cis_profile` prepares the host, for fresh installations only The role does not enforce this, it only documents it. |
 | Supply chain | `calicoctl` verified against the checksums of its release, kube-vip pinned by digest through `kube_vip_digests` |
 | Out of scope | Pod Security levels per namespace, sandboxing, tenant RBAC, host patching, resource reservations through `rke2_kubelet_args` |
 | Documentation | README rewritten around why the role exists and what sets it apart, with a Security section, the kube-vip note folded in from `docs/README.md` |

@@ -2,6 +2,9 @@ name: Code Quality
 
 on: [push, pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   lint:
 
@@ -9,6 +12,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
 
     - uses: actions/setup-python@v7
       with:

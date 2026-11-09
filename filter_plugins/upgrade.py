@@ -7,6 +7,8 @@ CGROUP_V2_REQUIRED_FROM_MINOR = 35
 
 def _numbers(version):
     match = re.match(r"v?(\d+)\.(\d+)(?:\.(\d+))?", version)
+    if match is None:
+        raise ValueError(f"cannot read a version number from {version!r}")
     return tuple(int(n or 0) for n in match.groups())
 
 

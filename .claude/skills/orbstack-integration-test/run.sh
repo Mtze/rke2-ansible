@@ -40,7 +40,7 @@ play() {  # play <inventory> <playbook> [ansible args...], leaves the output in 
   grep -E 'fatal:|^ERROR' "$WORK/last" | cut -c1-300
   return $rc
 }
-changed() { grep -E ' : ok=' "$WORK/last" | sed -E 's/.*changed=([0-9]+).*/\1/' | paste -sd+ - | bc; }
+changed() { grep -E ' : ok=' "$WORK/last" | sed -E 's/.*changed=([0-9]+).*/\1/' | awk '{s+=$1} END {print s+0}'; }
 
 token_kind() {
   on "$1" 'grep ^token: /etc/rancher/rke2/config.yaml | sed -E "s/^token: K10[0-9a-f]+::([a-z]+):.*/\1/"'

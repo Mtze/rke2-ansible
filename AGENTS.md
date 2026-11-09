@@ -37,14 +37,14 @@ Each of these exists because something broke without it.
 - **No `run_once` on a decision that differs per host.** Facts survive between plays. `run_once` with a `when` decides on the first host alone, so a first host that still holds a token skips the task for everyone. Let each host ask for itself. `run_once` is fine for creating something once.
 - **Find the first server through `rke2_first_server`,** never through the first play host. With `--limit <pool>` the play may hold agents only.
 - **Do not rely on RKE2 to notice a changed manifest.** It can take until its next restart. Security policies are applied with `kubectl` as soon as they change.
-- **Every RKE2 restart goes through `files/restart-and-wait.sh`,** so the next node waits for health. Do not add a plain `service: state=restarted`.
+- **Every RKE2 restart goes through `files/restart-and-wait.sh`,** so the next node waits for health. Do not add a plain `service: state=restarted` for `rke2-server` or `rke2-agent`.
 - **Tokens stay secret.** Use `no_log: true` on every task that touches one, and `diff: false` on the config template. S3 credentials and the agent token secret are rendered on servers only.
 - **Agents join with the agent token where one exists.** Never add `agent-token` to a running cluster automatically: every second server restart then fails with `passwd newer than datastore` until `rke2 token rotate` has run.
 - **Conditions must be booleans.** Write `x | length > 0`, not `x`. `ansible-core` 2.19 and newer fail on anything else.
 - **Tasks that render the config need the token.** Token discovery is tagged `always` for that reason.
 - **`get_url` needs `force: true`** when a newer version should replace an existing file.
 - **The role never formats disks.** Disk preparation belongs to the playbooks that use the role.
-- **Defaults must not surprise a running cluster.** New options stay off or in a reporting mode unless they cannot break a workload.
+- **Defaults must not surprise a running cluster.** New options stay off or in a reporting mode unless they cannot break a workload, or a major release changes a default on purpose and the migration section of the README says so.
 
 ## Making a change
 
